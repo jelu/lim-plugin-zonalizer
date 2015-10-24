@@ -13,6 +13,7 @@ use MIME::Base64     ();
 use AnyEvent         ();
 use AnyEvent::Handle ();
 use JSON::XS         ();
+use HTTP::Status     ();
 
 use base qw(Lim::Component::Server);
 
@@ -215,6 +216,18 @@ sub CreateAnalyze {
     my ( $self, $cb, $q ) = @_;
     $STAT{api}->{requests}++;
 
+    if ( $STAT{tests}->{ongoing} > 1 ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_SERVICE_UNAVAILABLE,
+                message => 'queue full'
+            )
+        );
+        return;
+    }
+
     my $uuid = OSSP::uuid->new;
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
@@ -365,7 +378,14 @@ sub ReadAnalyze {
     $STAT{api}->{requests}++;
 
     unless ( exists $TEST{ $q->{id} } ) {
-        $self->Error( $cb, 'not found' );
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_NOT_FOUND,
+                message => 'not found'
+            )
+        );
         return;
     }
 
