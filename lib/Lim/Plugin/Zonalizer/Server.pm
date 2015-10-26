@@ -189,15 +189,13 @@ sub ReadAnalysis {
     my @analysis;
 
     foreach ( sort { $b->{update} <=> $a->{update} } values %TEST ) {
-        my $analyze = {
-            %{$_}
-        };
+        my %test = %{$_};
 
-        unless ( $q->{result} ) {
-            delete $analyze->{result};
-        }
+#        unless ( $q->{result} ) {
+            delete $test{result};
+#        }
 
-        push( @analysis, $analyze );
+        push( @analysis, \%test );
 
         if ( scalar @analysis == 10 ) {
             last;
@@ -399,7 +397,7 @@ sub ReadAnalyze {
         return;
     }
 
-    if ( exists $q->{result} and $q->{result} ) {
+    if ( $q->{result} ) {
         $self->Successful( $cb, $TEST{ $q->{id} } );
         return;
     }
