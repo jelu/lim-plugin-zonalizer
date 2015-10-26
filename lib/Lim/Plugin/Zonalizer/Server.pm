@@ -259,6 +259,7 @@ sub CreateAnalyze {
     my $failed = sub {
         $STAT{tests}->{ongoing}--;
         $STAT{tests}->{failed}++;
+        $TEST{$id}->{status} = 'failed';
     };
     $handle = AnyEvent::Handle->new(
         fh      => $cli,
@@ -333,6 +334,7 @@ sub CreateAnalyze {
             if ( defined $failed ) {
                 $STAT{tests}->{ongoing}--;
                 $STAT{tests}->{completed}++;
+                $TEST{$id}->{status} = 'done';
                 undef $failed;
             }
             if ( $handle->destroyed ) {
@@ -389,13 +391,6 @@ sub ReadAnalyze {
         return;
     }
 
-    if ( exists $q->{result} and !$q->{result} ) {
-        my %test = %{ $TEST{ $q->{id} } };
-        delete $test{result};
-        $self->Successful( $cb, \%test );
-        return;
-    }
-
     if ( exists $q->{last_result} and $q->{last_result} ) {
         my %test = %{ $TEST{ $q->{id} } };
         my $result = delete $test{result};
@@ -404,7 +399,15 @@ sub ReadAnalyze {
         return;
     }
 
-    $self->Successful( $cb, $TEST{ $q->{id} } );
+    if ( exists $q->{result} and $q->{result} ) {
+        $self->Successful( $cb, $TEST{ $q->{id} } );
+        return;
+    }
+
+    my %test = %{ $TEST{ $q->{id} } };
+    delete $test{result};
+    $self->Successful( $cb, \%test );
+
     return;
 }
 

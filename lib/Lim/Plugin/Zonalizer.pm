@@ -75,7 +75,8 @@ sub Calls {
                 'version => ReadVersion version=1',
                 'status => ReadStatus version=1',
                 'analysis => ReadAnalysis version=1',
-                'analyze => ReadAnalyze version=1'
+                'analyze => ReadAnalyze version=1',
+                'analyze/id=[\w-]+ => ReadAnalyze version=1'
             ]
         },
         Create1 => {
@@ -138,6 +139,9 @@ sub Calls {
             out => { id   => 'string' }
         },
         ReadAnalyze => {
+            uri_map => [
+                'id=[\w-]+ => ReadAnalyze'
+            ],
             in => {
                 version => 'integer',
                 id => 'string',
