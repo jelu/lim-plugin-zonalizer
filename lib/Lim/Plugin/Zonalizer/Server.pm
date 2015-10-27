@@ -225,6 +225,17 @@ sub CreateAnalyze {
         );
         return;
     }
+    unless ( $q->{zone} =~ /^[a-zA-Z0-9\.-]+$/o ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_NOT_ACCEPTABLE,
+                message => 'invalid zone'
+            )
+        );
+        return;
+    }
 
     my $uuid = OSSP::uuid->new;
     $uuid->make( 'v4' );
