@@ -168,7 +168,7 @@ Get status about API and analysis.
 * `analysis.completed`: Number of completed analysis.
 * `analysis.failed`: Number of failed analysis.
 
-### GET /zonalizer/1/analysis[?results=bool]
+### GET /zonalizer/1/analysis[?results=bool&lang=string]
 
 Get a list of all analysis that exists in the database for Zonalizer.
 See `analyze` under Objects for description of the analyze object.
@@ -186,12 +186,14 @@ See `analyze` under Objects for description of the analyze object.
 
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default false (0).
+* `lang`: Specify the language to use when generating the `message` in the
+  `result` object and in the `error` object, default en_US.UTF-8.
 
 ### DELETE /zonalizer/1/analysis
 
 Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
-### GET /zonalizer/1/analysis?search=string[&results=bool]
+### GET /zonalizer/1/analysis?search=string[&results=bool&lang=string]
 
 Search for analysis which FQDN matches the given string.  If prefixed with a dot
 then all subdomains are returned.  For example `.com` will return all analysis
@@ -213,6 +215,8 @@ See `analyze` under Objects for description of the analyze object.
   matches all ending with the string.
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default false (0).
+* `lang`: Specify the language to use when generating the `message` in the
+  `result` object and in the `error` object, default en_US.UTF-8.
 
 ### POST /zonalizer/1/analysis?fqdn=string
 
@@ -221,28 +225,33 @@ description of the analyze object.
 
 * `fqdn`: A string with the FQDN to check.
 
-### GET /zonalizer/1/analysis/:id[?results=bool]
+### GET /zonalizer/1/analysis/:id[?results=bool&lang=string]
 
 Get information about an analyze.  See `analyze` under Objects for description
 of the analyze object.
 
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default true (1).
+* `lang`: Specify the language to use when generating the `message` in the
+  `result` object and in the `error` object, default en_US.UTF-8.
 
-### GET /zonalizer/1/analysis/:id/status
+### GET /zonalizer/1/analysis/:id/status[?lang=string]
 
 Only get status information about an analyze, this call is optimal for polling.
+
+* `lang`: Specify the language to use when generating the `message` in the
+  `error` object, default en_US.UTF-8.
 
 ```
 {
   "status": "string",
-  "error": "string",
+  "error": error,
   "progress": integer,
 }
 ```
 
 * `status`: The status of the check, see Check Statuses.
-* `error`: May hold a text string describing status if negative.  (optional)
+* `error`: An object describing an error, see `error` under Objects.  (optional)
 * `progress`: The progress of the check as an integer with the percent of
   completion.
 
@@ -261,7 +270,7 @@ The main analyze object which may include all results from Zonemaster.
   "id": "uuid",
   "fqdn": "string",
   "status": "string",
-  "error": "string",
+  "error": error,
   "progress": integer,
   "created": datetime,
   "updated": datetime,
@@ -276,12 +285,26 @@ The main analyze object which may include all results from Zonemaster.
 * `id`: The UUID of the analyze.
 * `fqdn`: The FQDN of the analyze.
 * `status`: The status of the check, see Check Statuses.
-* `error`: May hold a text string describing status if negative.  (optional)
+* `error`: An object describing an error, see `error` under Objects.  (optional)
 * `progress`: The progress of the check as an integer with the percent of
   completion.
 * `created`: The date and time of when the object was created.
 * `updated`: The date and time of when the object was last updated.
 * `results`: An array containing `result` objects.  (optional)
+
+### error
+
+An object describing an error.
+
+```
+{
+  "code": "string",
+  "message": "string"
+}
+```
+
+* `code`: A string with the error code, see Analyze Errors.
+* `message`: A textual description of the error.
 
 ### result
 
@@ -304,7 +327,7 @@ vary depending on the version of Zonemaster you are running.
 
 * `_id`: A basic counter for each result object in the set, starts at zero (0).
 * `args`: An object with the arguments used for the specific result.
-* `level`: The serverity of the result, see `Result Levels`.
+* `level`: The serverity of the result, see Result Levels.
 * `module`: The Zonemaster module that produced the result.
 * `tag`: A describing tag of the result, this is used by Zonemaster to generate
   the message.
@@ -340,8 +363,11 @@ documentation for more details.
 
 ## Errors
 
-Errors are returned in a `Lim::Error` format, for example this is a internal
-server error (500):
+Errors that are related to the communication with the API are returned as JSON
+in a `Lim::Error` format and other errors which are related to the processing
+of analysis are set in the `error` object.
+
+For example this is a internal server error (500):
 
 ```
 {
@@ -414,9 +440,14 @@ found in the logs.
 This error also occurs when the framework's input and output data validation
 checks fail, see logs for detailed information.
 
+### Analyze Errors
+
+TODO
+
 # LICENSE AND COPYRIGHT
 
 Copyright 2015 Jerry Lundström
+
 Copyright 2015 IIS (The Internet Foundation in Sweden)
 
 This program is free software; you can redistribute it and/or modify it
