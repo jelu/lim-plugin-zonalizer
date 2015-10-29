@@ -223,7 +223,7 @@ See `analyze` under Objects for description of the analyze object.
 Initiate a new test for a given zone.  See `analyze` under Objects for
 description of the analyze object.
 
-* `fqdn`: A string with the FQDN to check.
+* `fqdn`: A string with the FQDN to analyze.
 
 ### GET /zonalizer/1/analysis/:id[?results=bool&lang=string]
 
@@ -235,23 +235,18 @@ of the analyze object.
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
-### GET /zonalizer/1/analysis/:id/status[?lang=string]
+### GET /zonalizer/1/analysis/:id/status
 
 Only get status information about an analyze, this call is optimal for polling.
-
-* `lang`: Specify the language to use when generating the `message` in the
-  `error` object, default en_US.UTF-8.
 
 ```
 {
   "status": "string",
-  "error": error,
   "progress": integer,
 }
 ```
 
 * `status`: The status of the check, see Check Statuses.
-* `error`: An object describing an error, see `error` under Objects.  (optional)
 * `progress`: The progress of the check as an integer with the percent of
   completion.
 
@@ -311,6 +306,8 @@ An object describing an error.
 A result object which is taken unprocessed from Zonemaster, description here may
 vary depending on the version of Zonemaster you are running.
 
+This documentation corresponds to version 1.0.7 of Zonemaster.
+
 ```
 {
   "_id": integer,
@@ -326,6 +323,7 @@ vary depending on the version of Zonemaster you are running.
 ```
 
 * `_id`: A basic counter for each result object in the set, starts at zero (0).
+  This is an additional paramter which is added by Zonalizer.
 * `args`: An object with the arguments used for the specific result.
 * `level`: The serverity of the result, see Result Levels.
 * `module`: The Zonemaster module that produced the result.
