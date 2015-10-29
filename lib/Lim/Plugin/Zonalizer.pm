@@ -124,13 +124,13 @@ sub Calls {
                 'version => ReadVersion version=1',
                 'status => ReadStatus version=1',
                 'analysis => ReadAnalysis version=1',
-                'analyze => ReadAnalyze version=1',
-                'analyze/id=[\w-]+ => ReadAnalyze version=1'
+                'analysis/id=[\w-]+ => ReadAnalyze version=1',
+                'analysis/id=[\w-]+/status => ReadAnalyzeStatus version=1'
             ]
         },
         Create1 => {
             uri_map => [
-                'analyze => CreateAnalyze version=1'
+                'analysis => CreateAnalyze version=1'
             ]
         },
         Update1 => {
@@ -138,7 +138,8 @@ sub Calls {
         },
         Delete1 => {
             uri_map => [
-                'analyze => DeleteAnalyze version=1'
+                'analysis => DeleteAnalysis version=1',
+                'analysis/id=[\w-]+ => DeleteAnalyze version=1'
             ]
         },
 
@@ -165,46 +166,69 @@ sub Calls {
         ReadAnalysis => {
             in => {
                 version => 'integer',
-                result => 'integer optional'
+                results => 'integer optional',
+                lang => 'string optional'
             },
             out => {
                 analyze => {
                     id       => 'string',
-                    zone     => 'string',
+                    fqdn     => 'string',
                     status   => 'string',
+                    error    => {
+                        code    => 'string',
+                        message => 'string'
+                    },
                     progress => 'integer',
                     created  => 'integer',
                     updated  => 'integer',
-                    result   => { '' => 'swallow' }
+                    results  => { '' => 'swallow' }
                 }
+            }
+        },
+        DeleteAnalysis => {
+            in => {
+                version => 'integer'
             }
         },
 
         CreateAnalyze => {
             in  => {
                 version => 'integer',
-                zone => 'string'
+                fqdn => 'string'
             },
             out => { id   => 'string' }
         },
         ReadAnalyze => {
-            uri_map => [
-                'id=[\w-]+ => ReadAnalyze'
-            ],
             in => {
                 version => 'integer',
                 id => 'string',
-                result => 'integer optional',
-                last_result => 'integer optional'
+                results => 'integer optional',
+                lang => 'string optional',
+                last_results => 'integer optional'
             },
             out => {
                 id       => 'string',
-                zone     => 'string',
+                fqdn     => 'string',
                 status   => 'string',
+                error    => {
+                    code    => 'string',
+                    message => 'string'
+                },
                 progress => 'integer',
                 created  => 'integer',
                 updated  => 'integer',
-                result   => { '' => 'swallow' }
+                results  => { '' => 'swallow' }
+            }
+        },
+        ReadAnalyzeStatus => {
+            in => {
+                version => 'integer',
+                id => 'string',
+            },
+            out => {
+                status   => 'string',
+                progress => 'integer',
+                updated  => 'integer'
             }
         },
         DeleteAnalyze => {

@@ -189,10 +189,6 @@ See `analyze` under Objects for description of the analyze object.
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
-### DELETE /zonalizer/1/analysis
-
-Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
-
 ### GET /zonalizer/1/analysis?search=string[&results=bool&lang=string]
 
 Search for analysis which FQDN matches the given string.  If prefixed with a dot
@@ -218,6 +214,10 @@ See `analyze` under Objects for description of the analyze object.
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
+### DELETE /zonalizer/1/analysis
+
+Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
+
 ### POST /zonalizer/1/analysis?fqdn=string
 
 Initiate a new test for a given zone.  See `analyze` under Objects for
@@ -235,6 +235,15 @@ of the analyze object.
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
+### GET /zonalizer/1/analysis/:id[?last_results=bool&lang=string]
+
+Get information about an analyze and include a set of the last results.
+See `analyze` under Objects for description of the analyze object.
+
+* `last_results`: An integer with the number of results to include.
+* `lang`: Specify the language to use when generating the `message` in the
+  `result` object and in the `error` object, default en_US.UTF-8.
+
 ### GET /zonalizer/1/analysis/:id/status
 
 Only get status information about an analyze, this call is optimal for polling.
@@ -243,6 +252,7 @@ Only get status information about an analyze, this call is optimal for polling.
 {
   "status": "string",
   "progress": integer,
+  "updated": datetime
 }
 ```
 
@@ -415,6 +425,14 @@ An invalid `after` parameter was supplied.
 
 An invalid `before` parameter was supplied.
 
+#### invalid_fqdn
+
+An invalid `fqdn` parameter was supplied.
+
+#### queue_full
+
+The queue is full so the request has been dropped.
+
 ### HTTP Errors
 
 These are the HTTP status errors returned, additional errors may be returned
@@ -422,7 +440,7 @@ from the framework.
 
 #### 400 BAD REQUEST
 
-Indicates that the requested limit, sort field or URL (for a new check) is
+Indicates that the requested limit, sort field or FQDN (for a new analyze) is
 invalid.  See `message` for the corresponding API error.
 
 #### 404 NOT FOUND
@@ -437,6 +455,15 @@ found in the logs.
 
 This error also occurs when the framework's input and output data validation
 checks fail, see logs for detailed information.
+
+#### 501 NOT IMPLEMENTED
+
+Indicates that the call used has not been implemented yet.
+
+#### 503 SERVICE UNAVAILABLE
+
+Indicates that the service is temporarly unavailable, see `message` for the
+corresponding API error.
 
 ### Analyze Errors
 

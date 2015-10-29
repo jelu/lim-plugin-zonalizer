@@ -230,9 +230,9 @@ sub ReadAnalysis {
     foreach ( sort { $b->{update} <=> $a->{update} } values %TEST ) {
         my %test = %{$_};
 
-#        unless ( $q->{result} ) {
-            delete $test{result};
-#        }
+        unless ( $q->{results} ) {
+            delete $test{results};
+        }
 
         push( @analysis, \%test );
 
@@ -242,6 +242,20 @@ sub ReadAnalysis {
     }
 
     $self->Successful( $cb, { analyze => \@analysis } );
+    return;
+}
+
+=item DeleteAnalysis
+
+=cut
+
+sub DeleteAnalysis {
+    my ( $self, $cb, $q ) = @_;
+    $STAT{api}->{requests}++;
+
+    %TEST = ();
+
+    $self->Successful( $cb );
     return;
 }
 
@@ -259,18 +273,18 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_SERVICE_UNAVAILABLE,
-                message => 'queue full'
+                message => 'queue_full'
             )
         );
         return;
     }
-    unless ( $q->{zone} =~ /^[a-zA-Z0-9\.-]+$/o ) {
+    unless ( $q->{fqdn} =~ /^[a-zA-Z0-9\.-]+$/o ) {
         $self->Error(
             $cb,
             Lim::Error->new(
                 module  => $self,
-                code    => HTTP::Status::HTTP_NOT_ACCEPTABLE,
-                message => 'invalid zone'
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'invalid_fqdn'
             )
         );
         return;
@@ -280,9 +294,9 @@ sub CreateAnalyze {
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
 
-    $TEST{$id} = {
+    my $test = $TEST{$id} = {
         id       => $id,
-        zone     => $q->{zone},
+        fqdn     => $q->{fqdn},
         status   => 'analyzing',
         progress => 0,
         created  => time,
@@ -290,7 +304,7 @@ sub CreateAnalyze {
     };
 
     my $cli;
-    unless ( open( $cli, '-|:encoding(UTF-8)', 'zonemaster-cli', qw(--json_stream --json_translate --no-ipv6 --level DEBUG), $q->{zone} ) ) {
+    unless ( open( $cli, '-|:encoding(UTF-8)', 'zonemaster-cli', qw(--json_stream --json_translate --no-ipv6 --level DEBUG), $q->{fqdn} ) ) {
         $STAT{analysis}->{failed}++;
         $self->Error( $cb, 'no' );
         return;
@@ -307,7 +321,7 @@ sub CreateAnalyze {
     my $failed = sub {
         $STAT{analysis}->{ongoing}--;
         $STAT{analysis}->{failed}++;
-        $TEST{$id}->{status} = 'failed';
+        $test->{status} = 'failed';
     };
     $handle = AnyEvent::Handle->new(
         fh      => $cli,
@@ -319,8 +333,8 @@ sub CreateAnalyze {
             }
 
             if ( $handle->destroyed ) {
-                $TEST{$id}->{progress} = 100;
-                delete $TEST{$id}->{result};
+                $test->{progress} = 100;
+                delete $test->{results};
                 if ( defined $failed ) {
                     $failed->();
                     undef $failed;
@@ -336,7 +350,7 @@ sub CreateAnalyze {
                         die;
                     }
 
-                    $TEST{$id}->{updated} = time;
+                    $test->{updated} = time;
 
                     if ( $msg->{level} eq 'DEBUG' || ( $msg->{level} eq 'INFO' && $msg->{tag} eq 'POLICY_DISABLED' ) ) {
                         if ( !$started && $msg->{tag} eq 'MODULE_VERSION' ) {
@@ -346,9 +360,9 @@ sub CreateAnalyze {
                             $started = 1;
                             $modules_done++;
 
-                            $TEST{$id}->{progress} = ( $modules_done * 100 ) / $modules;
+                            $test->{progress} = ( $modules_done * 100 ) / $modules;
 
-                            $self->{logger}->debug( 'done ', $modules_done, ' progress ', $TEST{$id}->{progress} );
+                            $self->{logger}->debug( 'done ', $modules_done, ' progress ', $test->{progress} );
                         }
                     }
 
@@ -357,12 +371,12 @@ sub CreateAnalyze {
                     }
 
                     $msg->{_id} = $result_id++;
-                    push( @{ $TEST{$id}->{result} }, $msg );
+                    push( @{ $test->{results} }, $msg );
                 }
             };
             if ( $@ ) {
-                $TEST{$id}->{progress} = 100;
-                delete $TEST{$id}->{result};
+                $test->{progress} = 100;
+                delete $test->{results};
                 $handle->destroy;
                 $handle = undef;
                 if ( defined $failed ) {
@@ -378,15 +392,15 @@ sub CreateAnalyze {
                 return;
             }
 
-            $TEST{$id}->{progress} = 100;
+            $test->{progress} = 100;
             if ( defined $failed ) {
                 $STAT{analysis}->{ongoing}--;
                 $STAT{analysis}->{completed}++;
-                $TEST{$id}->{status} = 'done';
+                $test->{status} = 'done';
                 undef $failed;
             }
             if ( $handle->destroyed ) {
-                delete $TEST{$id}->{result};
+                delete $test->{results};
                 return;
             }
 
@@ -400,8 +414,8 @@ sub CreateAnalyze {
                 return;
             }
 
-            $TEST{$id}->{progress} = 100;
-            delete $TEST{$id}->{result};
+            $test->{progress} = 100;
+            delete $test->{results};
             if ( defined $failed ) {
                 $failed->();
                 undef $failed;
@@ -433,29 +447,56 @@ sub ReadAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_NOT_FOUND,
-                message => 'not found'
+                message => 'id_not_found'
             )
         );
         return;
     }
 
-    if ( exists $q->{last_result} and $q->{last_result} ) {
+    if ( exists $q->{last_results} and $q->{last_results} ) {
         my %test = %{ $TEST{ $q->{id} } };
-        my $result = delete $test{result};
-        $test{result} = scalar @$result < $q->{last_result} ? [ @$result ] : [ @{$result}[-$q->{last_result}..-1] ];
+        my $results = delete $test{results};
+        $test{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
         $self->Successful( $cb, \%test );
         return;
     }
 
-    if ( $q->{result} ) {
-        $self->Successful( $cb, $TEST{ $q->{id} } );
+    if ( exists $q->{results} and !$q->{results} ) {
+        my %test = %{ $TEST{ $q->{id} } };
+        delete $test{results};
+        $self->Successful( $cb, \%test );
         return;
     }
 
-    my %test = %{ $TEST{ $q->{id} } };
-    delete $test{result};
-    $self->Successful( $cb, \%test );
+    $self->Successful( $cb, $TEST{ $q->{id} } );
+    return;
+}
 
+=item ReadAnalyzeStatus
+
+=cut
+
+sub ReadAnalyzeStatus {
+    my ( $self, $cb, $q ) = @_;
+    $STAT{api}->{requests}++;
+
+    unless ( exists $TEST{ $q->{id} } ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_NOT_FOUND,
+                message => 'id_not_found'
+            )
+        );
+        return;
+    }
+
+    $self->Successful( $cb, {
+        status => $TEST{ $q->{id} }->{status},
+        progress => $TEST{ $q->{id} }->{progress},
+        update => $TEST{ $q->{id} }->{update}
+    } );
     return;
 }
 
@@ -468,7 +509,14 @@ sub DeleteAnalyze {
     $STAT{api}->{requests}++;
 
     unless ( exists $TEST{ $q->{id} } ) {
-        $self->Error( $cb, 'not found' );
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_NOT_FOUND,
+                message => 'id_not_found'
+            )
+        );
         return;
     }
 
