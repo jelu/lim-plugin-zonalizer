@@ -1,6 +1,6 @@
 # API v1
 
-This describes the API version 1 for Zonalizer. The URLs in this description
+This describes the API version 1 for Zonalizer.  The URLs in this description
 assumes that Lim operates without any prefixes and all structure examples are
 in JSON.
 
@@ -48,7 +48,7 @@ The following URI query string options can be used:
 * `sort`: The field name in the corresponding objects being returned that the
   result should be sorted on.
 * `direction`: The direction of the result in conjunction with `sort`, can be
-  `ascending` or `descending`. Default is ascending.
+  `ascending` or `descending`.  Default is ascending.
 
 Example:
 
@@ -73,10 +73,14 @@ For each paginated result the following object is also included:
 }
 ```
 
-* `before`: This is the cursor that points to the start of the page of data that has been returned.
-* `after`: This is the cursor that points to the end of the page of data that has been returned.
-* `next`: The full API query that will return the next page of data. If not included, this is the last page of data.
-* `previous`: The full API query that will return the previous page of data. If not included, this is the first page of data.
+* `before`: This is the cursor that points to the start of the page of data that
+  has been returned.
+* `after`: This is the cursor that points to the end of the page of data that
+  has been returned.
+* `next`: The full API query that will return the next page of data.  If not
+  included, this is the last page of data.
+* `previous`: The full API query that will return the previous page of data.
+  If not included, this is the first page of data.
 
 ## Configuration
 
@@ -156,7 +160,8 @@ Get status about API and analysis.
 }
 ```
 
-* `api.requests`: The number of API requests processed, this includes any kind of API call.
+* `api.requests`: The number of API requests processed, this includes any kind
+  of API call.
 * `api.errors`: The number of API errors.
 * `analysis.ongoing`: Number of currently ongoing analysis.
 * `analysis.completed`: Number of completed analysis.
@@ -180,12 +185,12 @@ See `analyze` under Objects for description of the analyze object.
 
 ### DELETE /zonalizer/1/analysis
 
-Delete all analysis. Returns HTTP Status 2xx on success and 4xx/5xx on error.
+Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
 ### GET /zonalizer/1/analysis?search=string
 
-Search for analysis which FQDN matches the given string. If prefixed with a dot
-then all subdomains are returned. For example `.com` will return all analysis
+Search for analysis which FQDN matches the given string.  If prefixed with a dot
+then all subdomains are returned.  For example `.com` will return all analysis
 ending with `.com` but `example.com` will only return analysis for that FQDN.
 See `analyze` under Objects for description of the analyze object.
 
@@ -200,23 +205,24 @@ See `analyze` under Objects for description of the analyze object.
 }
 ```
 
-* `search`: A string with the domainname to search for. If prefixed with a dot, matches all ending with the string.
+* `search`: A string with the domainname to search for.  If prefixed with a dot,
+  matches all ending with the string.
 
 ### POST /zonalizer/1/analysis?fqdn=string
 
-Initiate a new test for a given zone. See `analyze` under Objects for
+Initiate a new test for a given zone.  See `analyze` under Objects for
 description of the analyze object.
 
 * `fqdn`: A string with the FQDN to check.
 
 ### GET /zonalizer/1/analysis/:id
 
-Get information about an analyze. See `analyze` under Objects for description of
-the analyze object.
+Get information about an analyze.  See `analyze` under Objects for description
+of the analyze object.
 
 ### DELETE /zonalizer/1/analysis/:id
 
-Delete an analyze. Returns HTTP Status 2xx on success and 4xx/5xx on error.
+Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
 ## Objects
 
@@ -242,11 +248,12 @@ Delete an analyze. Returns HTTP Status 2xx on success and 4xx/5xx on error.
 * `id`: The UUID of the analyze.
 * `fqdn`: The FQDN of the analyze.
 * `status`: The status of the check, see Check Statuses.
-* `error`: May hold a text string describing status if negative. (optional)
-* `progress`: The progress of the check as an integer with the percent of completion.
+* `error`: May hold a text string describing status if negative.  (optional)
+* `progress`: The progress of the check as an integer with the percent of
+  completion.
 * `created`: The date and time of when the object was created.
 * `updated`: The date and time of when the object was last updated.
-* `results`: An array containing `result` objects. (optional)
+* `results`: An array containing `result` objects.  (optional)
 
 ### result
 
@@ -263,16 +270,21 @@ Delete an analyze. Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
 * `id`: An identifier of the result, see Result.
 * `status`: The status of the check, see Result Statuses.
-* `error`: May hold a text string describing an error. (optional)
-* `data`: The data of the result which can be anything, see the individual result types under Result.
+* `error`: May hold a text string describing an error.  (optional)
+* `data`: The data of the result which can be anything, see the individual
+  result types under Result.
 
 ## Check Statuses
 
-* `queued`: indicates that the analyze has been queued and waiting on a worker to start processing it.
-* `analyzing`: indicates that the analyze has been taken up by a worker and its processing it.
+* `queued`: indicates that the analyze has been queued and waiting on a worker
+  to start processing it.
+* `analyzing`: indicates that the analyze has been taken up by a worker and its
+  processing it.
 * `done`: indicates that the analyze is done and results are available.
-* `failed`: indicates that the analyze failed, check `error` and `results` for an `error` why it failed.
-* `stopped`: indicates that the analyze was stopped, check `error` and `results` for an `error` why it was stopped.
+* `failed`: indicates that the analyze failed, check `error` and `results` for
+  an `error` why it failed.
+* `stopped`: indicates that the analyze was stopped, check `error` and `results`
+  for an `error` why it was stopped.
 
 ## Errors
 
@@ -335,7 +347,7 @@ from the framework.
 #### 400 BAD REQUEST
 
 Indicates that the requested limit, sort field or URL (for a new check) is
-invalid. See `message` for the corresponding API error.
+invalid.  See `message` for the corresponding API error.
 
 #### 404 NOT FOUND
 
