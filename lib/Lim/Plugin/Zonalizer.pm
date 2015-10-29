@@ -105,7 +105,7 @@ sub Calls {
                     requests => 'integer',
                     errors => 'integer'
                 },
-                tests => {
+                analysis => {
                     ongoing => 'integer',
                     completed => 'integer',
                     failed => 'integer'

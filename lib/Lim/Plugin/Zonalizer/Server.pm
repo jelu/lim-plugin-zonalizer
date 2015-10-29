@@ -37,7 +37,7 @@ our %STAT    = (
         requests => 0,
         errors   => 0
     },
-    tests => {
+    analysis => {
         ongoing => 0,
         completed => 0,
         failed => 0
@@ -253,7 +253,7 @@ sub CreateAnalyze {
     my ( $self, $cb, $q ) = @_;
     $STAT{api}->{requests}++;
 
-    if ( $STAT{tests}->{ongoing} > 1 ) {
+    if ( $STAT{analysis}->{ongoing} > 1 ) {
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -291,12 +291,12 @@ sub CreateAnalyze {
 
     my $cli;
     unless ( open( $cli, '-|:encoding(UTF-8)', 'zonemaster-cli', qw(--json_stream --json_translate --no-ipv6 --level DEBUG), $q->{zone} ) ) {
-        $STAT{tests}->{failed}++;
+        $STAT{analysis}->{failed}++;
         $self->Error( $cb, 'no' );
         return;
     }
 
-    $STAT{tests}->{ongoing}++;
+    $STAT{analysis}->{ongoing}++;
 
     my $json         = JSON::XS->new->utf8;
     my $modules      = 0;
@@ -305,8 +305,8 @@ sub CreateAnalyze {
     my $result_id    = 0;
     my $handle;
     my $failed = sub {
-        $STAT{tests}->{ongoing}--;
-        $STAT{tests}->{failed}++;
+        $STAT{analysis}->{ongoing}--;
+        $STAT{analysis}->{failed}++;
         $TEST{$id}->{status} = 'failed';
     };
     $handle = AnyEvent::Handle->new(
@@ -380,8 +380,8 @@ sub CreateAnalyze {
 
             $TEST{$id}->{progress} = 100;
             if ( defined $failed ) {
-                $STAT{tests}->{ongoing}--;
-                $STAT{tests}->{completed}++;
+                $STAT{analysis}->{ongoing}--;
+                $STAT{analysis}->{completed}++;
                 $TEST{$id}->{status} = 'done';
                 undef $failed;
             }

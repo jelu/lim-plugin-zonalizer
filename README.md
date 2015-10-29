@@ -138,9 +138,9 @@ Get the version of Zonalizer.
 }
 ```
 
-### GET /zonalizer/1/statistics
+### GET /zonalizer/1/status
 
-Get API statistics and status about running and completed tests.
+Get status about API and analysis.
 
 ```
 {
@@ -148,7 +148,7 @@ Get API statistics and status about running and completed tests.
       "requests" : 501,
       "errors" : 0
    },
-   "tests" : {
+   "analysis" : {
       "ongoing" : 0,
       "completed" : 5,
       "failed" : 0
@@ -158,9 +158,9 @@ Get API statistics and status about running and completed tests.
 
 * `api.requests`: The number of API requests processed, this includes any kind of API call.
 * `api.errors`: The number of API errors.
-* `tests.ongoing`: Number of currently ongoing analysis.
-* `tests.completed`: Number of completed analysis.
-* `tests.failed`: Number of failed analysis.
+* `analysis.ongoing`: Number of currently ongoing analysis.
+* `analysis.completed`: Number of completed analysis.
+* `analysis.failed`: Number of failed analysis.
 
 ### GET /zonalizer/1/analysis
 
