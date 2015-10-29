@@ -2,7 +2,19 @@ package Lim::Plugin::Zonalizer;
 
 use common::sense;
 
-use base qw(Lim::Component);
+use base qw(Exporter Lim::Component);
+
+our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
+  ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
+  ERR_INVALID_AFTER ERR_INVALID_BEFORE
+  );
+our %EXPORT_TAGS = (
+    err => [
+        qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
+           ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
+           ERR_INVALID_AFTER ERR_INVALID_BEFORE)
+    ]
+);
 
 =encoding utf8
 
@@ -34,6 +46,43 @@ our $VERSION = '0.10';
 =head1 DESCRIPTION
 
 ...
+
+=head1 ERRORS
+
+  use Lim::Plugin::Zonalizer qw(:err);
+
+See API documentation for full description about errors.
+
+=over 4
+
+=item ERR_DUPLICATE_ID
+
+=item ERR_ID_NOT_FOUND
+
+=item ERR_REVISION_MISSMATCH
+
+=item ERR_INVALID_LIMIT
+
+=item ERR_INVALID_SORT_FIELD
+
+=item ERR_INTERNAL_DATABASE
+
+=item ERR_INVALID_AFTER
+
+=item ERR_INVALID_BEFORE
+
+=back
+
+=cut
+
+sub ERR_DUPLICATE_ID()       { return 'duplicate_id_found' }
+sub ERR_ID_NOT_FOUND()       { return 'id_not_found' }
+sub ERR_REVISION_MISSMATCH() { return 'revision_missmatch' }
+sub ERR_INVALID_LIMIT()      { return 'invalid_limit' }
+sub ERR_INVALID_SORT_FIELD() { return 'invalid_sort_field' }
+sub ERR_INTERNAL_DATABASE()  { return 'internal_database_error' }
+sub ERR_INVALID_AFTER()      { return 'invalid_after' }
+sub ERR_INVALID_BEFORE()     { return 'invalid_before' }
 
 =head1 METHODS
 

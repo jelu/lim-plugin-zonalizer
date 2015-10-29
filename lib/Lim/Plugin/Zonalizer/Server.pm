@@ -5,7 +5,7 @@ use common::sense;
 use Carp;
 use Scalar::Util qw(weaken blessed);
 
-use Lim::Plugin::Zonalizer ();
+use Lim::Plugin::Zonalizer qw(:err);
 
 use Lim              ();
 use Lim::Error       ();

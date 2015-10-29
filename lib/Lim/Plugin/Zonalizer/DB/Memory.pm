@@ -7,7 +7,7 @@ use Carp;
 use Scalar::Util qw(weaken);
 
 use OSSP::uuid ();
-use Lim::Plugin::Zonalizer::DB qw(:err);
+use Lim::Plugin::Zonalizer qw(:err);
 use URI::Escape::XS qw(uri_escape);
 use Clone qw(clone);
 use Lim ();

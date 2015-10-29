@@ -17,6 +17,7 @@ The following data types are used:
 * `uuid`: A version 4 UUID.
 * `string`: An UTF8 string.
 * `integer`: A signed big integer.
+* `float`: A float.
 * `href`: An URL pointing to another object or objects as according to HATEOAS.
 * `datetime`: An UTC Unix Timestamp integer.
 
@@ -167,7 +168,7 @@ Get status about API and analysis.
 * `analysis.completed`: Number of completed analysis.
 * `analysis.failed`: Number of failed analysis.
 
-### GET /zonalizer/1/analysis
+### GET /zonalizer/1/analysis[?results=bool]
 
 Get a list of all analysis that exists in the database for Zonalizer.
 See `analyze` under Objects for description of the analyze object.
@@ -183,11 +184,14 @@ See `analyze` under Objects for description of the analyze object.
 }
 ```
 
+* `results`: If true (1), include `results` in the `analyze` objects in the
+  response. Default false (0).
+
 ### DELETE /zonalizer/1/analysis
 
 Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
-### GET /zonalizer/1/analysis?search=string
+### GET /zonalizer/1/analysis?search=string[&results=bool]
 
 Search for analysis which FQDN matches the given string.  If prefixed with a dot
 then all subdomains are returned.  For example `.com` will return all analysis
@@ -207,6 +211,8 @@ See `analyze` under Objects for description of the analyze object.
 
 * `search`: A string with the domainname to search for.  If prefixed with a dot,
   matches all ending with the string.
+* `results`: If true (1), include `results` in the `analyze` objects in the
+  response. Default false (0).
 
 ### POST /zonalizer/1/analysis?fqdn=string
 
@@ -215,10 +221,30 @@ description of the analyze object.
 
 * `fqdn`: A string with the FQDN to check.
 
-### GET /zonalizer/1/analysis/:id
+### GET /zonalizer/1/analysis/:id[?results=bool]
 
 Get information about an analyze.  See `analyze` under Objects for description
 of the analyze object.
+
+* `results`: If true (1), include `results` in the `analyze` objects in the
+  response. Default true (1).
+
+### GET /zonalizer/1/analysis/:id/status
+
+Only get status information about an analyze, this call is optimal for polling.
+
+```
+{
+  "status": "string",
+  "error": "string",
+  "progress": integer,
+}
+```
+
+* `status`: The status of the check, see Check Statuses.
+* `error`: May hold a text string describing status if negative.  (optional)
+* `progress`: The progress of the check as an integer with the percent of
+  completion.
 
 ### DELETE /zonalizer/1/analysis/:id
 
@@ -227,6 +253,8 @@ Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 ## Objects
 
 ### analyze
+
+The main analyze object which may include all results from Zonemaster.
 
 ```
 {
@@ -241,7 +269,7 @@ Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
     result,
     result,
     ...
-  ],
+  ]
 }
 ```
 
@@ -257,24 +285,34 @@ Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
 ### result
 
+A result object which is taken unprocessed from Zonemaster, description here may
+vary depending on the version of Zonemaster you are running.
+
 ```
 {
-  "id": "string",
-  "status": "string",
-  "error": "string",
-  "data": {
+  "_id": integer,
+  "args": {
     ...
-  }
+  },
+  "level": "string",
+  "module": "string",
+  "tag": "string",
+  "timestamp": float,
+  "message": "string"
 }
 ```
 
-* `id`: An identifier of the result, see Result.
-* `status`: The status of the check, see Result Statuses.
-* `error`: May hold a text string describing an error.  (optional)
-* `data`: The data of the result which can be anything, see the individual
-  result types under Result.
+* `_id`: A basic counter for each result object in the set, starts at zero (0).
+* `args`: An object with the arguments used for the specific result.
+* `level`: The serverity of the result, see `Result Levels`.
+* `module`: The Zonemaster module that produced the result.
+* `tag`: A describing tag of the result, this is used by Zonemaster to generate
+  the message.
+* `timestamp`: A timestamp for when the result was generated, this is a float
+  value of the number of seconds since the start of the analysis.
+* `message`: A describing message of the result.
 
-## Check Statuses
+## Analyze Statuses
 
 * `queued`: indicates that the analyze has been queued and waiting on a worker
   to start processing it.
@@ -285,6 +323,20 @@ Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
   an `error` why it failed.
 * `stopped`: indicates that the analyze was stopped, check `error` and `results`
   for an `error` why it was stopped.
+
+## Result Levels
+
+The following result levels can be given by Zonemaster, please see Zonemaster
+documentation for more details.
+
+- DEBUG3
+- DEBUG2
+- DEBUG
+- INFO
+- NOTICE
+- WARNING
+- ERROR
+- CRITICAL
 
 ## Errors
 
