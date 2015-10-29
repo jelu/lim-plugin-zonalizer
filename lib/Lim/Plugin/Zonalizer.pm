@@ -196,7 +196,7 @@ Jerry Lundström, C<< <lundstrom.jerry@gmail.com> >>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to L<http://your.bugtracker.com/lim-plugin-zonalizer>.
+Please report any bugs or feature requests to L<https://github.com/jelu/lim-plugin-zonalizer/issues>.
 
 =head1 SUPPORT
 
@@ -210,7 +210,7 @@ You can also look for information at:
 
 =item * Lim issue tracker (report bugs here)
 
-L<http://your.bugtracker.com/lim-plugin-zonalizer>
+L<https://github.com/jelu/lim-plugin-zonalizer/issues>
 
 =back
 
@@ -218,7 +218,8 @@ L<http://your.bugtracker.com/lim-plugin-zonalizer>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2015 Jerry Lundström.
+Copyright 2015 Jerry Lundström
+Copyright 2015 IIS (The Internet Foundation in Sweden)
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

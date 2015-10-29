@@ -1,0 +1,126 @@
+#!/usr/bin/env perl
+
+use common::sense;
+
+use AnyEvent;
+use AnyEvent::CouchDB;
+use AnyEvent::HTTP;
+use JSON;
+use OSSP::uuid;
+
+unless ( $ARGV[0] ) {
+    die 'usage: zonalizer-create-database <uri>'
+}
+
+my $JSON = JSON->new;
+my $db   = couchdb( $ARGV[0] );
+
+$db->drop->recv;
+$db->create->recv;
+
+req( PUT => '_design/zones', $JSON->encode( {
+    _id => '_design/zones',
+    views => {
+        all => {
+            map => '
+function (doc) {
+    emit([doc.id, null]);
+}
+'
+        },
+        by_fqdn => {
+            map => '
+function (doc) {
+    emit([doc.fqdn, null]);
+}
+'
+        },
+        by_rfqdn => {
+            map => '
+function (doc) {
+    var key = doc.fqdn.split(/\./).reverse();
+    key.push(null);
+    emit(key);
+}
+'
+        },
+        map {
+            'by_' . $_ => {
+                map => '
+function (doc) {
+    emit([doc.' . $_ . ', doc.id, null]);
+}
+'
+              }
+        } ( qw(created updated) )
+    }
+} ) )->recv;
+
+sub req {
+    my ( $method, $path, $body ) = @_;
+    my $cv = AnyEvent->condvar;
+
+    http_request(
+        $method => $db->uri . $path,
+        headers => $db->_build_headers( {} ),
+        body    => $body,
+        sub {
+            my ( $body, $headers ) = @_;
+            if ( $headers->{Status} >= 200 and $headers->{Status} < 400 ) {
+                $cv->send( $body );
+            }
+            else {
+                $cv->croak( $headers->{Status} . ' - ' . $headers->{Reason} . ' - ' . $headers->{URL} );
+            }
+        }
+    );
+
+    return $cv;
+}
+
+=head1 NAME
+
+zonalizer-create-database - Create the CouchDB database for Zonalizer
+
+=head1 SYNOPSIS
+
+zonalizer-create-database <uri>
+
+=head1 AUTHOR
+
+Jerry Lundström, C<< <lundstrom.jerry@gmail.com> >>
+
+=head1 BUGS
+
+Please report any bugs or feature requests to L<https://github.com/jelu/lim-plugin-zonalizer/issues>.
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Lim::Plugin::Zonalizer
+
+You can also look for information at:
+
+=over 4
+
+=item * Lim issue tracker (report bugs here)
+
+L<https://github.com/jelu/lim-plugin-zonalizer/issues>
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2015 Jerry Lundström
+Copyright 2015 IIS (The Internet Foundation in Sweden)
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.
+
+See http://dev.perl.org/licenses/ for more information.
+
+=cut

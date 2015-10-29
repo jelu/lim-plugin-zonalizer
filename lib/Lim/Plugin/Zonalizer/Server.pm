@@ -2,12 +2,13 @@ package Lim::Plugin::Zonalizer::Server;
 
 use common::sense;
 
-use Scalar::Util qw(weaken);
+use Carp;
+use Scalar::Util qw(weaken blessed);
 
 use Lim::Plugin::Zonalizer ();
 
-use Lim::Util ();
-
+use Lim              ();
+use Lim::Error       ();
 use OSSP::uuid       ();
 use MIME::Base64     ();
 use AnyEvent         ();
@@ -42,6 +43,7 @@ our %STAT    = (
         failed => 0
     }
 );
+
 our %TEST;
 
 =head1 SYNOPSIS
@@ -68,6 +70,43 @@ sub Init {
     my ( $self ) = @_;
     my $real_self = $self;
     weaken( $self );
+
+    # Default configuration
+
+    $self->{default_limit}     = 10;
+    $self->{max_limit}         = 10;
+    $self->{base_url}          = 1;
+    $self->{db_driver}         = 'Memory';
+    $self->{db_conf}           = {};
+
+    # Load configuration
+
+    if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url) ) {
+            if ( defined Lim->Config->{zonalizer}->{$_} ) {
+                $self->{$_} = Lim->Config->{zonalizer}->{$_};
+            }
+        }
+
+        if ( defined Lim->Config->{zonalizer}->{db_conf} ) {
+            unless ( ref( Lim->Config->{zonalizer}->{db_conf} ) eq 'HASH' ) {
+                confess "Configuration for db_conf is wrong, must be HASH";
+            }
+
+            $self->{db_conf} = Lim->Config->{zonalizer}->{db_conf};
+        }
+    }
+
+    # Load database
+
+    my $db_driver = 'Lim::Plugin::Zonalizer::DB::' . $self->{db_driver};
+    eval 'use ' . $db_driver . ';';
+    if ( $@ ) {
+        confess $@;
+    }
+    $self->{db} = $db_driver->new( %{ $self->{db_conf} } );
+
+    # Temporary memory scrubber
 
     $self->{cleaner} = AnyEvent->timer(after => 60, interval => 60, cb => sub {
         unless ( $self ) {
@@ -447,7 +486,7 @@ Jerry Lundström, C<< <lundstrom.jerry@gmail.com> >>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to L<http://your.bugtracker.com/lim-plugin-zonalizer>.
+Please report any bugs or feature requests to L<https://github.com/jelu/lim-plugin-zonalizer/issues>.
 
 =head1 SUPPORT
 
@@ -461,7 +500,7 @@ You can also look for information at:
 
 =item * Lim issue tracker (report bugs here)
 
-L<http://your.bugtracker.com/lim-plugin-zonalizer>
+L<https://github.com/jelu/lim-plugin-zonalizer/issues>
 
 =back
 
@@ -469,7 +508,8 @@ L<http://your.bugtracker.com/lim-plugin-zonalizer>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2015 Jerry Lundström.
+Copyright 2015 Jerry Lundström
+Copyright 2015 IIS (The Internet Foundation in Sweden)
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

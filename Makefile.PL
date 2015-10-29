@@ -18,13 +18,29 @@ WriteMakefile(
             'common::sense' => 3,
             'Lim' => 0.16,
             'Getopt::Long' => 2.38,
-            'Scalar::Util' => 1
+            'Scalar::Util' => 1,
+            'URI::Escape::XS' => 0.11,
+            'OSSP::uuid' => 0,
+            'Clone' => 0,
+            'AnyEvent::CouchDB' => 1.31,
+            'AnyEvent::HTTP' => 2.21,
+            'JSON' => 0,
+            'HTTP::Status' => 0,
+            'JSON::XS' => 0,
         },
         PREREQ_PM => {
             'common::sense' => 3,
             'Lim' => 0.16,
             'Getopt::Long' => 2.38,
-            'Scalar::Util' => 1
+            'Scalar::Util' => 1,
+            'URI::Escape::XS' => 0.11,
+            'OSSP::uuid' => 0,
+            'Clone' => 0,
+            'AnyEvent::CouchDB' => 1.31,
+            'AnyEvent::HTTP' => 2.21,
+            'JSON' => 0,
+            'HTTP::Status' => 0,
+            'JSON::XS' => 0,
         }
     ) : (
         PREREQ_PM => {
@@ -32,15 +48,23 @@ WriteMakefile(
             'common::sense' => 3,
             'Lim' => 0.16,
             'Getopt::Long' => 2.38,
-            'Scalar::Util' => 1
+            'Scalar::Util' => 1,
+            'URI::Escape::XS' => 0.11,
+            'OSSP::uuid' => 0,
+            'Clone' => 0,
+            'AnyEvent::CouchDB' => 1.31,
+            'AnyEvent::HTTP' => 2.21,
+            'JSON' => 0,
+            'HTTP::Status' => 0,
+            'JSON::XS' => 0,
         }
     )),
     (! eval { ExtUtils::MakeMaker->VERSION(6.46) } ? () :
         (META_ADD => {
             resources => {
-                homepage   => 'http://your.homepage.com',
-                repository => 'http://your.repository.com/lim-plugin-zonalizer',
-                bugtracker => 'http://your.bugtracker.com/lim-plugin-zonalizer',
+                homepage   => 'https://github.com/jelu/lim-plugin-zonalizer',
+                repository => 'https://github.com/jelu/lim-plugin-zonalizer',
+                bugtracker => 'https://github.com/jelu/lim-plugin-zonalizer/issues',
             },
         })
     ),
