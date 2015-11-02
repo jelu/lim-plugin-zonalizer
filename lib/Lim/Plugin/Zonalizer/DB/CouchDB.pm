@@ -27,282 +27,6 @@ our $ID_DELIMITER = ':';
 
 Lim::Plugin::Zonalizer::DB::CouchDB - The CouchDB database for Zonalizer
 
-=head1 PRIVATE
-
-=over 4
-
-=item HandleResponse
-
-=cut
-
-sub HandleResponse {
-    my ( $self, $cv, $reverse, $keyskip ) = @_;
-
-    unless ( blessed $cv and $cv->can( 'recv' ) ) {
-        die 'cv is not object';
-    }
-
-    my $data = $cv->recv;
-
-    unless ( ref( $data ) eq 'HASH' ) {
-        die 'data is not HASH';
-    }
-    foreach ( qw(offset total_rows rows) ) {
-        unless ( defined $data->{$_} ) {
-            die 'data->' . $_ . ' is not defined';
-        }
-    }
-    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
-        die 'data->rows is not ARRAY';
-    }
-
-    my ( $before, $after, $previous, $next, @rows ) = ( undef, undef, 0, 0 );
-
-    foreach ( @{ $data->{rows} } ) {
-        unless ( ref( $_ ) eq 'HASH' ) {
-            die 'data->rows[] entry is not HASH';
-        }
-        unless ( ref( $_->{key} ) eq 'ARRAY' ) {
-            die 'data->rows[]->key is not ARRAY';
-        }
-        unless ( ref( $_->{doc} ) eq 'HASH' ) {
-            die 'data->rows[]->doc is not HASH';
-        }
-        push( @rows, $_->{doc} );
-    }
-
-    unless ( wantarray ) {
-        return \@rows;
-    }
-
-    if ( $reverse ) {
-        @rows = reverse @rows;
-
-        if ( $data->{offset} > 0 ) {
-            $next = 1;
-        }
-        if ( ( $data->{total_rows} - $data->{offset} - scalar @rows ) > 0 ) {
-            $previous = 1;
-        }
-    }
-    else {
-        if ( $data->{offset} > 0 ) {
-            $previous = 1;
-        }
-        if ( ( $data->{total_rows} - $data->{offset} - scalar @rows ) > 0 ) {
-            $next = 1;
-        }
-    }
-
-    if ( $keyskip ) {
-        my ( $skip, @key );
-
-        @key = grep { defined $_ } @{ $data->{rows}->[0]->{key} };
-        $skip = $keyskip;
-        while ( $skip-- ) {
-            shift( @key );
-        }
-        $before = join( $ID_DELIMITER, @key );
-
-        @key = grep { defined $_ } @{ $data->{rows}->[-1]->{key} };
-        $skip = $keyskip;
-        while ( $skip-- ) {
-            shift( @key );
-        }
-        $after = join( $ID_DELIMITER, @key );
-    }
-    else {
-        $before = join( $ID_DELIMITER, grep { defined $_ } @{ $data->{rows}->[0]->{key} } );
-        $after  = join( $ID_DELIMITER, grep { defined $_ } @{ $data->{rows}->[-1]->{key} } );
-    }
-
-    return ( $before, $after, $previous, $next, \@rows, $data->{total_rows}, $data->{offset} );
-}
-
-=item HandleResponseKey
-
-=cut
-
-sub HandleResponseKey {
-    my ( $self, $cv ) = @_;
-
-    unless ( blessed $cv and $cv->can( 'recv' ) ) {
-        die 'cv is not object';
-    }
-
-    my $data = $cv->recv;
-
-    unless ( ref( $data ) eq 'HASH' ) {
-        die 'data is not HASH';
-    }
-    foreach ( qw(rows) ) {
-        unless ( defined $data->{$_} ) {
-            die 'data->' . $_ . ' is not defined';
-        }
-    }
-    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
-        die 'data->rows is not ARRAY';
-    }
-
-    my @rows;
-
-    foreach ( @{ $data->{rows} } ) {
-        unless ( ref( $_ ) eq 'HASH' ) {
-            die 'data->rows[] entry is not HASH';
-        }
-        if ( exists $_->{doc} ) {
-            unless ( ref( $_->{doc} ) eq 'HASH' ) {
-                die 'data->rows[]->doc is not HASH';
-            }
-            push( @rows, $_->{doc} );
-        }
-        elsif ( ref( $_->{key} ) eq 'ARRAY' ) {
-            push( @rows, [ grep { defined $_ } @{ $_->{key} } ] );
-        }
-        else {
-            push( @rows, $_->{key} );
-        }
-    }
-
-    return \@rows;
-}
-
-=item HandleResponseId
-
-=cut
-
-sub HandleResponseId {
-    my ( $self, $cv ) = @_;
-
-    unless ( blessed $cv and $cv->can( 'recv' ) ) {
-        die 'cv is not object';
-    }
-
-    my $data = $cv->recv;
-
-    unless ( ref( $data ) eq 'HASH' ) {
-        die 'data is not HASH';
-    }
-    foreach ( qw(rows) ) {
-        unless ( defined $data->{$_} ) {
-            die 'data->' . $_ . ' is not defined';
-        }
-    }
-    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
-        die 'data->rows is not ARRAY';
-    }
-
-    my @rows;
-
-    foreach ( @{ $data->{rows} } ) {
-        unless ( ref( $_ ) eq 'HASH' ) {
-            die 'data->rows[] entry is not HASH';
-        }
-        unless ( defined $_->{id} ) {
-            die 'data->rows[]->id is not defined';
-        }
-        push( @rows, $_->{id} );
-    }
-
-    return \@rows;
-}
-
-=item HandleResponseIdRev
-
-=cut
-
-sub HandleResponseIdRev {
-    my ( $self, $cv ) = @_;
-
-    unless ( blessed $cv and $cv->can( 'recv' ) ) {
-        die 'cv is not object';
-    }
-
-    my $data = $cv->recv;
-
-    unless ( ref( $data ) eq 'HASH' ) {
-        die 'data is not HASH';
-    }
-    foreach ( qw(rows) ) {
-        unless ( defined $data->{$_} ) {
-            die 'data->' . $_ . ' is not defined';
-        }
-    }
-    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
-        die 'data->rows is not ARRAY';
-    }
-
-    my @rows;
-
-    foreach ( @{ $data->{rows} } ) {
-        unless ( ref( $_ ) eq 'HASH' ) {
-            die 'data->rows[] entry is not HASH';
-        }
-        unless ( ref( $_->{doc} ) eq 'HASH' ) {
-            die 'data->rows[]->doc is not HASH';
-        }
-        unless ( defined $_->{doc}->{_id} ) {
-            die 'data->rows[]->doc->_id is not defined';
-        }
-        unless ( defined $_->{doc}->{_rev} ) {
-            die 'data->rows[]->doc->_rev is not defined';
-        }
-        push( @rows, { _id => $_->{doc}->{_id}, _rev => $_->{doc}->{_rev} } );
-    }
-
-    return \@rows;
-}
-
-=item HandleResponseBulk
-
-=cut
-
-sub HandleResponseBulk {
-    my ( $self, $cv ) = @_;
-
-    unless ( blessed $cv and $cv->can( 'recv' ) ) {
-        die 'cv is not object';
-    }
-
-    my $data = $cv->recv;
-
-    unless ( ref( $data ) eq 'ARRAY' ) {
-        die 'data is not ARRAY';
-    }
-
-    foreach ( @$data ) {
-        unless ( ref( $_ ) eq 'HASH' ) {
-            die 'data[] is not HASH';
-        }
-        unless ( defined $_->{id} ) {
-            die 'data[]->id is not defined';
-        }
-        if ( exists $_->{rev} and exists $_->{ok} ) {
-            unless ( defined $_->{rev} ) {
-                die 'data[]->rev is not defined';
-            }
-            unless ( defined $_->{ok} ) {
-                die 'data[]->ok is not defined';
-            }
-        }
-        elsif ( exists $_->{error} and exists $_->{reason} ) {
-            unless ( defined $_->{error} ) {
-                die 'data[]->error is not defined';
-            }
-            unless ( defined $_->{reason} ) {
-                die 'data[]->reason is not defined';
-            }
-        }
-        else {
-            die 'data[] missing rev/id or error/reason';
-        }
-    }
-
-    return $data;
-}
-
-=back
-
 =head1 METHODS
 
 =over 4
@@ -977,10 +701,15 @@ sub CreateAnalyze {
                         return;
                     }
 
+
+                    $analyze{type} = 'analyze';
+
                     # uncoverable branch false
-                    Lim::DEBUG and $self->{logger}->debug( 'couchdb new_analysis/by_fqdn ', $analyze{fqdn} );
-                    $self->{db}->view( 'new_analysis/by_fqdn', { key => $analyze{fqdn} } )->cb(
+                    Lim::DEBUG and $self->{logger}->debug( 'couchdb save_doc analyze' );
+                    $self->{db}->save_doc( \%analyze )->cb(
                         sub {
+                            my ( $cv ) = @_;
+
                             # uncoverable branch true
                             unless ( defined $self ) {
 
@@ -988,9 +717,23 @@ sub CreateAnalyze {
                                 return;
                             }
 
-                            my $rows;
-                            eval { $rows = $self->HandleResponseId( $_[0] ); };
+                            eval { $cv->recv; };
                             if ( $@ ) {
+                                $self->{db}->remove_doc( \%analyze )->cb(
+                                    sub {
+                                        eval { $_[0]->recv; };
+
+                                        # uncoverable branch true
+                                        unless ( defined $self ) {
+
+                                            # uncoverable statement
+                                            return;
+                                        }
+
+                                        # uncoverable branch false
+                                        Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
+                                    }
+                                );
 
                                 # uncoverable branch false
                                 Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
@@ -998,93 +741,8 @@ sub CreateAnalyze {
                                 $args{cb}->();
                                 return;
                             }
-                            unless ( scalar @$rows ) {
-                                $self->{db}->remove_doc( \%analyze )->cb(
-                                    sub {
-                                        eval { $_[0]->recv; };
 
-                                        # uncoverable branch true
-                                        unless ( defined $self ) {
-
-                                            # uncoverable statement
-                                            return;
-                                        }
-
-                                        # uncoverable branch false
-                                        Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                                    }
-                                );
-
-                                # uncoverable branch false
-                                Lim::ERR and $self->{logger}->error( 'CouchDB error: created analyze but was not returned' );
-                                $@ = ERR_INTERNAL_DATABASE;
-                                $args{cb}->();
-                                return;
-                            }
-                            unless ( scalar @$rows == 1 ) {
-                                $self->{db}->remove_doc( \%analyze )->cb(
-                                    sub {
-                                        eval { $_[0]->recv; };
-
-                                        # uncoverable branch true
-                                        unless ( defined $self ) {
-
-                                            # uncoverable statement
-                                            return;
-                                        }
-
-                                        # uncoverable branch false
-                                        Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                                    }
-                                );
-                                $@ = ERR_DUPLICATE_FQDN;
-                                $args{cb}->();
-                                return;
-                            }
-
-                            $analyze{type} = 'analyze';
-
-                            # uncoverable branch false
-                            Lim::DEBUG and $self->{logger}->debug( 'couchdb save_doc analyze' );
-                            $self->{db}->save_doc( \%analyze )->cb(
-                                sub {
-                                    my ( $cv ) = @_;
-
-                                    # uncoverable branch true
-                                    unless ( defined $self ) {
-
-                                        # uncoverable statement
-                                        return;
-                                    }
-
-                                    eval { $cv->recv; };
-                                    if ( $@ ) {
-                                        $self->{db}->remove_doc( \%analyze )->cb(
-                                            sub {
-                                                eval { $_[0]->recv; };
-
-                                                # uncoverable branch true
-                                                unless ( defined $self ) {
-
-                                                    # uncoverable statement
-                                                    return;
-                                                }
-
-                                                # uncoverable branch false
-                                                Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                                            }
-                                        );
-
-                                        # uncoverable branch false
-                                        Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                                        $@ = ERR_INTERNAL_DATABASE;
-                                        $args{cb}->();
-                                        return;
-                                    }
-
-                                    $args{cb}->( \%analyze );
-                                }
-                            );
+                            $args{cb}->( \%analyze );
                         }
                     );
                 }
@@ -1310,6 +968,282 @@ sub DeleteAnalyze {
         }
     );
     return;
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item HandleResponse
+
+=cut
+
+sub HandleResponse {
+    my ( $self, $cv, $reverse, $keyskip ) = @_;
+
+    unless ( blessed $cv and $cv->can( 'recv' ) ) {
+        die 'cv is not object';
+    }
+
+    my $data = $cv->recv;
+
+    unless ( ref( $data ) eq 'HASH' ) {
+        die 'data is not HASH';
+    }
+    foreach ( qw(offset total_rows rows) ) {
+        unless ( defined $data->{$_} ) {
+            die 'data->' . $_ . ' is not defined';
+        }
+    }
+    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
+        die 'data->rows is not ARRAY';
+    }
+
+    my ( $before, $after, $previous, $next, @rows ) = ( undef, undef, 0, 0 );
+
+    foreach ( @{ $data->{rows} } ) {
+        unless ( ref( $_ ) eq 'HASH' ) {
+            die 'data->rows[] entry is not HASH';
+        }
+        unless ( ref( $_->{key} ) eq 'ARRAY' ) {
+            die 'data->rows[]->key is not ARRAY';
+        }
+        unless ( ref( $_->{doc} ) eq 'HASH' ) {
+            die 'data->rows[]->doc is not HASH';
+        }
+        push( @rows, $_->{doc} );
+    }
+
+    unless ( wantarray ) {
+        return \@rows;
+    }
+
+    if ( $reverse ) {
+        @rows = reverse @rows;
+
+        if ( $data->{offset} > 0 ) {
+            $next = 1;
+        }
+        if ( ( $data->{total_rows} - $data->{offset} - scalar @rows ) > 0 ) {
+            $previous = 1;
+        }
+    }
+    else {
+        if ( $data->{offset} > 0 ) {
+            $previous = 1;
+        }
+        if ( ( $data->{total_rows} - $data->{offset} - scalar @rows ) > 0 ) {
+            $next = 1;
+        }
+    }
+
+    if ( $keyskip ) {
+        my ( $skip, @key );
+
+        @key = grep { defined $_ } @{ $data->{rows}->[0]->{key} };
+        $skip = $keyskip;
+        while ( $skip-- ) {
+            shift( @key );
+        }
+        $before = join( $ID_DELIMITER, @key );
+
+        @key = grep { defined $_ } @{ $data->{rows}->[-1]->{key} };
+        $skip = $keyskip;
+        while ( $skip-- ) {
+            shift( @key );
+        }
+        $after = join( $ID_DELIMITER, @key );
+    }
+    else {
+        $before = join( $ID_DELIMITER, grep { defined $_ } @{ $data->{rows}->[0]->{key} } );
+        $after  = join( $ID_DELIMITER, grep { defined $_ } @{ $data->{rows}->[-1]->{key} } );
+    }
+
+    return ( $before, $after, $previous, $next, \@rows, $data->{total_rows}, $data->{offset} );
+}
+
+=item HandleResponseKey
+
+=cut
+
+sub HandleResponseKey {
+    my ( $self, $cv ) = @_;
+
+    unless ( blessed $cv and $cv->can( 'recv' ) ) {
+        die 'cv is not object';
+    }
+
+    my $data = $cv->recv;
+
+    unless ( ref( $data ) eq 'HASH' ) {
+        die 'data is not HASH';
+    }
+    foreach ( qw(rows) ) {
+        unless ( defined $data->{$_} ) {
+            die 'data->' . $_ . ' is not defined';
+        }
+    }
+    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
+        die 'data->rows is not ARRAY';
+    }
+
+    my @rows;
+
+    foreach ( @{ $data->{rows} } ) {
+        unless ( ref( $_ ) eq 'HASH' ) {
+            die 'data->rows[] entry is not HASH';
+        }
+        if ( exists $_->{doc} ) {
+            unless ( ref( $_->{doc} ) eq 'HASH' ) {
+                die 'data->rows[]->doc is not HASH';
+            }
+            push( @rows, $_->{doc} );
+        }
+        elsif ( ref( $_->{key} ) eq 'ARRAY' ) {
+            push( @rows, [ grep { defined $_ } @{ $_->{key} } ] );
+        }
+        else {
+            push( @rows, $_->{key} );
+        }
+    }
+
+    return \@rows;
+}
+
+=item HandleResponseId
+
+=cut
+
+sub HandleResponseId {
+    my ( $self, $cv ) = @_;
+
+    unless ( blessed $cv and $cv->can( 'recv' ) ) {
+        die 'cv is not object';
+    }
+
+    my $data = $cv->recv;
+
+    unless ( ref( $data ) eq 'HASH' ) {
+        die 'data is not HASH';
+    }
+    foreach ( qw(rows) ) {
+        unless ( defined $data->{$_} ) {
+            die 'data->' . $_ . ' is not defined';
+        }
+    }
+    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
+        die 'data->rows is not ARRAY';
+    }
+
+    my @rows;
+
+    foreach ( @{ $data->{rows} } ) {
+        unless ( ref( $_ ) eq 'HASH' ) {
+            die 'data->rows[] entry is not HASH';
+        }
+        unless ( defined $_->{id} ) {
+            die 'data->rows[]->id is not defined';
+        }
+        push( @rows, $_->{id} );
+    }
+
+    return \@rows;
+}
+
+=item HandleResponseIdRev
+
+=cut
+
+sub HandleResponseIdRev {
+    my ( $self, $cv ) = @_;
+
+    unless ( blessed $cv and $cv->can( 'recv' ) ) {
+        die 'cv is not object';
+    }
+
+    my $data = $cv->recv;
+
+    unless ( ref( $data ) eq 'HASH' ) {
+        die 'data is not HASH';
+    }
+    foreach ( qw(rows) ) {
+        unless ( defined $data->{$_} ) {
+            die 'data->' . $_ . ' is not defined';
+        }
+    }
+    unless ( ref( $data->{rows} ) eq 'ARRAY' ) {
+        die 'data->rows is not ARRAY';
+    }
+
+    my @rows;
+
+    foreach ( @{ $data->{rows} } ) {
+        unless ( ref( $_ ) eq 'HASH' ) {
+            die 'data->rows[] entry is not HASH';
+        }
+        unless ( ref( $_->{doc} ) eq 'HASH' ) {
+            die 'data->rows[]->doc is not HASH';
+        }
+        unless ( defined $_->{doc}->{_id} ) {
+            die 'data->rows[]->doc->_id is not defined';
+        }
+        unless ( defined $_->{doc}->{_rev} ) {
+            die 'data->rows[]->doc->_rev is not defined';
+        }
+        push( @rows, { _id => $_->{doc}->{_id}, _rev => $_->{doc}->{_rev} } );
+    }
+
+    return \@rows;
+}
+
+=item HandleResponseBulk
+
+=cut
+
+sub HandleResponseBulk {
+    my ( $self, $cv ) = @_;
+
+    unless ( blessed $cv and $cv->can( 'recv' ) ) {
+        die 'cv is not object';
+    }
+
+    my $data = $cv->recv;
+
+    unless ( ref( $data ) eq 'ARRAY' ) {
+        die 'data is not ARRAY';
+    }
+
+    foreach ( @$data ) {
+        unless ( ref( $_ ) eq 'HASH' ) {
+            die 'data[] is not HASH';
+        }
+        unless ( defined $_->{id} ) {
+            die 'data[]->id is not defined';
+        }
+        if ( exists $_->{rev} and exists $_->{ok} ) {
+            unless ( defined $_->{rev} ) {
+                die 'data[]->rev is not defined';
+            }
+            unless ( defined $_->{ok} ) {
+                die 'data[]->ok is not defined';
+            }
+        }
+        elsif ( exists $_->{error} and exists $_->{reason} ) {
+            unless ( defined $_->{error} ) {
+                die 'data[]->error is not defined';
+            }
+            unless ( defined $_->{reason} ) {
+                die 'data[]->reason is not defined';
+            }
+        }
+        else {
+            die 'data[] missing rev/id or error/reason';
+        }
+    }
+
+    return $data;
 }
 
 =back

@@ -8,7 +8,7 @@ use Log::Log4perl ();
 use Scalar::Util qw(weaken);
 
 use Lim                    ();
-use Lim::Plugin::Zonalizer ();
+use Lim::Plugin::Zonalizer qw(:status);
 
 =encoding utf8
 
@@ -292,6 +292,14 @@ sub DeleteAnalyze {
 
 Validate a analyze object and confess if there are any problems.
 
+=over 4
+
+=item $analyze
+
+The analyze object to validate.
+
+=back
+
 =cut
 
 sub ValidateAnalyze {
@@ -300,14 +308,102 @@ sub ValidateAnalyze {
     unless ( ref( $analyze ) eq 'HASH' ) {
         confess 'analyze is not HASH';
     }
-    foreach ( qw(id fqdn created updated) ) {
+    foreach ( qw(id fqdn status progress created updated) ) {
         unless ( defined $analyze->{$_} ) {
             confess 'analyze->' . $_ . ' is not defined';
         }
     }
-    foreach ( qw(last_check) ) {
-        if ( exists $analyze->{$_} && !defined $analyze->{$_} ) {
-            confess 'analyze->' . $_ . ' exists but is not defined';
+    foreach ( qw(progress created updated) ) {
+        unless ( $analyze->{$_} == ( $analyze->{$_} + 0 ) ) {
+            confess 'analyze->' . $_ . ' is not a numeric value';
+        }
+    }
+    unless ( grep { $analyze->{status} eq $_ } ( STATUS_QUEUED, STATUS_ANALYZING, STATUS_DONE, STATUS_FAILED, STATUS_STOPPED ) ) {
+        confess 'analyze->status is invalid';
+    }
+    if ( exists $analyze->{error} ) {
+        unless ( ref( $analyze->{error} ) eq 'HASH' ) {
+            confess 'analyze->error is not HASH';
+        }
+        foreach ( qw(code message) ) {
+            unless ( defined $analyze->{error}->{$_} ) {
+                confess 'analyze->error->' . $_ . ' is not defined';
+            }
+        }
+    }
+    if ( exists $analyze->{results} ) {
+        eval {
+            $self->ValidateResults( $analyze->{results} );
+        };
+        if ( $@ ) {
+            confess 'analyze->results is invalid: '.$@;
+        }
+    }
+    return;
+}
+
+=item $db->ValidateResults ($results)
+
+Validate a set of result objects and confess if there are any problems.
+
+=over 4
+
+=item $results
+
+An array ref with the result objects to validate.
+
+=cut
+
+sub ValidateResults {
+    my ( $self, $results ) = @_;
+
+    unless ( ref( $results ) eq 'ARRAY' ) {
+        confess 'results is not ARRAY';
+    }
+    my $count = 1;
+    foreach ( @$results ) {
+        eval {
+            $self->ValidateResult( $_ );
+        };
+        if ( $@ ) {
+            confess 'result['.$count.'] is invalid: '.$@;
+        }
+        $count++;
+    }
+    return;
+}
+
+=item $db->ValidateResult ($result)
+
+Validate a result object and confess if there are any problems.
+
+=over 4
+
+=item $result
+
+The result object to validate.
+
+=cut
+
+sub ValidateResult {
+    my ( $self, $result ) = @_;
+
+    unless ( ref( $result ) eq 'HASH' ) {
+        confess 'result is not HASH';
+    }
+    foreach ( qw(_id level module tag timestamp message) ) {
+        unless ( defined $result->{$_} ) {
+            confess 'result->' . $_ . ' is not defined';
+        }
+    }
+    foreach ( qw(_id timestamp) ) {
+        unless ( $result->{$_} == ( $result->{$_} + 0 ) ) {
+            confess 'result->' . $_ . ' is not a numeric value';
+        }
+    }
+    if ( exists $result->{args} ) {
+        unless ( ref( $result->{args} ) eq 'HASH' ) {
+            confess 'result->args is not HASH';
         }
     }
     return;

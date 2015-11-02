@@ -7,12 +7,17 @@ use base qw(Exporter Lim::Component);
 our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
   ERR_INVALID_AFTER ERR_INVALID_BEFORE
+  STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED STATUS_STOPPED
   );
 our %EXPORT_TAGS = (
     err => [
         qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
            ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
            ERR_INVALID_AFTER ERR_INVALID_BEFORE)
+    ],
+    status => [
+        qw(STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
+           STATUS_STOPPED)
     ]
 );
 
@@ -83,6 +88,34 @@ sub ERR_INVALID_SORT_FIELD() { return 'invalid_sort_field' }
 sub ERR_INTERNAL_DATABASE()  { return 'internal_database_error' }
 sub ERR_INVALID_AFTER()      { return 'invalid_after' }
 sub ERR_INVALID_BEFORE()     { return 'invalid_before' }
+
+=head1 STATUSES
+
+  use Lim::Plugin::Zonalizer qw(:status);
+
+See API documentation for full description about statuses.
+
+=over 4
+
+=item STATUS_QUEUED
+
+=item STATUS_ANALYZING
+
+=item STATUS_DONE
+
+=item STATUS_FAILED
+
+=item STATUS_STOPPED
+
+=back
+
+=cut
+
+sub STATUS_QUEUED()    { return 'queued' }
+sub STATUS_ANALYZING() { return 'analyzing' }
+sub STATUS_DONE()      { return 'done' }
+sub STATUS_FAILED()    { return 'failed' }
+sub STATUS_STOPPED()   { return 'stopped' }
 
 =head1 METHODS
 
@@ -166,11 +199,12 @@ sub Calls {
         ReadAnalysis => {
             in => {
                 version => 'integer',
+                ongoing => 'integer optional',
                 results => 'integer optional',
                 lang => 'string optional'
             },
             out => {
-                analyze => {
+                analysis => {
                     id       => 'string',
                     fqdn     => 'string',
                     status   => 'string',

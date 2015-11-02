@@ -5,7 +5,7 @@ use common::sense;
 use Carp;
 use Scalar::Util qw(weaken blessed);
 
-use Lim::Plugin::Zonalizer qw(:err);
+use Lim::Plugin::Zonalizer qw(:err :status);
 
 use Lim              ();
 use Lim::Error       ();
@@ -223,25 +223,137 @@ sub ReadStatus {
 
 sub ReadAnalysis {
     my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
     $STAT{api}->{requests}++;
 
-    my @analysis;
+    #
+    # Verify limit and set base url if configured/requested.
+    #
 
-    foreach ( sort { $b->{update} <=> $a->{update} } values %TEST ) {
-        my %test = %{$_};
-
-        unless ( $q->{results} ) {
-            delete $test{results};
-        }
-
-        push( @analysis, \%test );
-
-        if ( scalar @analysis == 10 ) {
-            last;
-        }
+    my $limit = $q->{limit} > 0 ? $q->{limit} : $self->{default_limit};
+    if ( $limit > $self->{max_limit} ) {
+        $limit = $self->{max_limit};
+    }
+    my $base_url = '';
+    if ( exists $self->{custom_base_url} ) {
+        $base_url = $self->{custom_base_url};
+    }
+    elsif ( ( defined $q->{base_url} ? $q->{base_url} : $self->{base_url} ) and $cb->request ) {
+        $base_url = $cb->request->header( 'X-Lim-Base-URL' );
     }
 
-    $self->Successful( $cb, { analyze => \@analysis } );
+    #
+    # Returned in memory ongoing analysis if requested.
+    #
+
+    if ( defined $q->{ongoing} && $q->{ongoing} == 1 ) {
+        my @analysis;
+
+        foreach ( sort { $b->{update} <=> $a->{update} } values %TEST ) {
+            my %test = %{$_};
+
+            unless ( $q->{results} ) {
+                delete $test{results};
+            }
+
+            push( @analysis, \%test );
+
+            if ( scalar @analysis == $limit ) {
+                last;
+            }
+        }
+
+        $self->Successful( $cb, { analyze => \@analysis } );
+        return;
+    }
+
+    #
+    # Query database for analysis.
+    #
+
+    $self->{db}->ReadAnalysis(
+        %$q,
+        limit => $limit,
+        cb    => sub {
+            my $paging = shift;
+            my @analysis;
+
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
+            }
+
+            if ( $@ ) {
+                $STAT{api}->{errors}++;
+
+                if ( $@ eq ERR_INVALID_LIMIT or $@ eq ERR_INVALID_SORT_FIELD ) {
+                    $self->Error(
+                        $cb,
+                        Lim::Error->new(
+                            module  => $self,
+                            code    => HTTP::Status::HTTP_BAD_REQUEST,
+                            message => $@
+                        )
+                    );
+                    return;
+                }
+
+                # uncoverable branch false
+                Lim::ERR and $self->{logger}->error( $@ );
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module => $self,
+                        code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+                    )
+                );
+                return;
+            }
+
+            #
+            # Construct the result
+            #
+
+            foreach ( @_ ) {
+                push(
+                    @analysis,
+                    {
+                        id       => $_->{id},
+                        fqdn     => $_->{fqdn},
+                        url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $_->{id} ),
+                        status   => $_->{status},
+                        progress => $_->{progress},
+                        created  => $_->{created},
+                        updated  => $_->{updated},
+                        exists $_->{error} ? ( error => $_->{error} ) : (),
+                        defined $q->{results} && $q->{results} == 1 && exists $_->{results} ? ( results => $_->{results} ) : (),
+                    }
+                );
+            }
+
+            $self->Successful(
+                $cb,
+                {
+                    analysis => \@analysis,
+                    defined $paging
+                    ? (
+                        paging => {
+                            cursors => {
+                                after  => $paging->{after},
+                                before => $paging->{before}
+                            },
+                            $paging->{previous} ? ( previous => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis?limit=' . uri_escape( $limit ) . '&before=' . uri_escape( $paging->{before} ) . ( defined $q->{sort} ? '&sort=' . uri_escape( $q->{sort} ) : '' ) . ( defined $q->{direction} ? '&direction=' . uri_escape( $q->{direction} ) : '' ) . ( defined $paging->{extra} ? '&' . $paging->{extra} : '' ) ) : (),
+                            $paging->{next}     ? ( next     => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis?limit=' . uri_escape( $limit ) . '&after=' . uri_escape( $paging->{after} ) .   ( defined $q->{sort} ? '&sort=' . uri_escape( $q->{sort} ) : '' ) . ( defined $q->{direction} ? '&direction=' . uri_escape( $q->{direction} ) : '' ) . ( defined $paging->{extra} ? '&' . $paging->{extra} : '' ) ) : ()
+                        }
+                      )
+                    : ()
+                }
+            );
+        }
+    );
     return;
 }
 
@@ -265,6 +377,8 @@ sub DeleteAnalysis {
 
 sub CreateAnalyze {
     my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
     $STAT{api}->{requests}++;
 
     if ( $STAT{analysis}->{ongoing} > 1 ) {
@@ -293,6 +407,8 @@ sub CreateAnalyze {
     my $uuid = OSSP::uuid->new;
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
+
+    $self->{logger}->debug('Analyzing ', $q->{fqdn}, ' ', $id);
 
     my $test = $TEST{$id} = {
         id       => $id,
@@ -323,6 +439,9 @@ sub CreateAnalyze {
         $STAT{analysis}->{failed}++;
         $test->{status} = 'failed';
     };
+    my $store = sub {
+        $self->StoreAnalyze( $test );
+    };
     $handle = AnyEvent::Handle->new(
         fh      => $cli,
         on_read => sub {
@@ -338,6 +457,10 @@ sub CreateAnalyze {
                 if ( defined $failed ) {
                     $failed->();
                     undef $failed;
+                }
+                if ( defined $store ) {
+                    $store->();
+                    undef $store;
                 }
                 return;
             }
@@ -383,6 +506,10 @@ sub CreateAnalyze {
                     $failed->();
                     undef $failed;
                 }
+                if ( defined $store ) {
+                    $store->();
+                    undef $store;
+                }
                 return;
             }
             $handle->{rbuf} = '';
@@ -398,6 +525,10 @@ sub CreateAnalyze {
                 $STAT{analysis}->{completed}++;
                 $test->{status} = 'done';
                 undef $failed;
+            }
+            if ( defined $store ) {
+                $store->();
+                undef $store;
             }
             if ( $handle->destroyed ) {
                 delete $test->{results};
@@ -420,6 +551,10 @@ sub CreateAnalyze {
                 $failed->();
                 undef $failed;
             }
+            if ( defined $store ) {
+                $store->();
+                undef $store;
+            }
             if ( $handle->destroyed ) {
                 return;
             }
@@ -439,36 +574,118 @@ sub CreateAnalyze {
 
 sub ReadAnalyze {
     my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
     $STAT{api}->{requests}++;
 
-    unless ( exists $TEST{ $q->{id} } ) {
-        $self->Error(
-            $cb,
-            Lim::Error->new(
-                module  => $self,
-                code    => HTTP::Status::HTTP_NOT_FOUND,
-                message => 'id_not_found'
-            )
-        );
+    #
+    # Set base url if configured/requested.
+    #
+
+    my $base_url = '';
+    if ( exists $self->{custom_base_url} ) {
+        $base_url = $self->{custom_base_url};
+    }
+    elsif ( ( defined $q->{base_url} ? $q->{base_url} : $self->{base_url} ) and $cb->request ) {
+        $base_url = $cb->request->header( 'X-Lim-Base-URL' );
+    }
+
+    #
+    # Check for analyze in memory.
+    #
+
+    if ( exists $TEST{ $q->{id} } ) {
+        if ( exists $q->{last_results} and $q->{last_results} ) {
+            my %test = %{ $TEST{ $q->{id} } };
+            my $results = delete $test{results};
+            $test{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
+            $self->Successful( $cb, \%test );
+            return;
+        }
+
+        if ( exists $q->{results} and !$q->{results} ) {
+            my %test = %{ $TEST{ $q->{id} } };
+            delete $test{results};
+            $self->Successful( $cb, \%test );
+            return;
+        }
+
+        $self->Successful( $cb, $TEST{ $q->{id} } );
         return;
     }
 
-    if ( exists $q->{last_results} and $q->{last_results} ) {
-        my %test = %{ $TEST{ $q->{id} } };
-        my $results = delete $test{results};
-        $test{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
-        $self->Successful( $cb, \%test );
-        return;
-    }
+    #
+    # Query the database for the analyze.
+    #
 
-    if ( exists $q->{results} and !$q->{results} ) {
-        my %test = %{ $TEST{ $q->{id} } };
-        delete $test{results};
-        $self->Successful( $cb, \%test );
-        return;
-    }
+    $self->{db}->ReadAnalyze(
+        id => $q->{id},
+        cb => sub {
+            my ( $analyze ) = @_;
 
-    $self->Successful( $cb, $TEST{ $q->{id} } );
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
+            }
+
+            if ( $@ ) {
+                $STAT{api}->{errors}++;
+
+                if ( $@ eq ERR_ID_NOT_FOUND ) {
+                    $self->Error(
+                        $cb,
+                        Lim::Error->new(
+                            module  => $self,
+                            code    => HTTP::Status::HTTP_NOT_FOUND,
+                            message => $@
+                        )
+                    );
+                    return;
+                }
+
+                # uncoverable branch false
+                Lim::ERR and $self->{logger}->error( $@ );
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module => $self,
+                        code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+                    )
+                );
+                return;
+            }
+
+            #
+            # Construct the result
+            #
+
+            if ( exists $q->{last_results} and $q->{last_results} ) {
+                my %test = %{ $TEST{ $q->{id} } };
+                my $results = delete $analyze->{results};
+                $analyze->{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
+            }
+            elsif ( exists $q->{results} and !$q->{results} ) {
+                delete $analyze->{results};
+            }
+
+            $self->Successful(
+                $cb,
+                {
+                    id       => $analyze->{id},
+                    fqdn     => $analyze->{fqdn},
+                    url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $analyze->{id} ),
+                    status   => $analyze->{status},
+                    progress => $analyze->{progress},
+                    created  => $analyze->{created},
+                    updated  => $analyze->{updated},
+                    exists $analyze->{error} ? ( error => $analyze->{error} ) : (),
+                    exists $analyze->{results} ? ( results => $analyze->{results} ) : (),
+                }
+            );
+        }
+    );
     return;
 }
 
@@ -478,25 +695,80 @@ sub ReadAnalyze {
 
 sub ReadAnalyzeStatus {
     my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
     $STAT{api}->{requests}++;
 
-    unless ( exists $TEST{ $q->{id} } ) {
-        $self->Error(
-            $cb,
-            Lim::Error->new(
-                module  => $self,
-                code    => HTTP::Status::HTTP_NOT_FOUND,
-                message => 'id_not_found'
-            )
-        );
+    #
+    # Check for analyze in memory.
+    #
+
+    if ( exists $TEST{ $q->{id} } ) {
+        $self->Successful( $cb, {
+            status => $TEST{ $q->{id} }->{status},
+            progress => $TEST{ $q->{id} }->{progress},
+            update => $TEST{ $q->{id} }->{update}
+        } );
         return;
     }
 
-    $self->Successful( $cb, {
-        status => $TEST{ $q->{id} }->{status},
-        progress => $TEST{ $q->{id} }->{progress},
-        update => $TEST{ $q->{id} }->{update}
-    } );
+    #
+    # Query the database for the analyze.
+    #
+
+    $self->{db}->ReadAnalyze(
+        id => $q->{id},
+        cb => sub {
+            my ( $analyze ) = @_;
+
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
+            }
+
+            if ( $@ ) {
+                $STAT{api}->{errors}++;
+
+                if ( $@ eq ERR_ID_NOT_FOUND ) {
+                    $self->Error(
+                        $cb,
+                        Lim::Error->new(
+                            module  => $self,
+                            code    => HTTP::Status::HTTP_NOT_FOUND,
+                            message => $@
+                        )
+                    );
+                    return;
+                }
+
+                # uncoverable branch false
+                Lim::ERR and $self->{logger}->error( $@ );
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module => $self,
+                        code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+                    )
+                );
+                return;
+            }
+
+            #
+            # Construct the result
+            #
+
+            $self->Successful(
+                $cb,
+                {
+                    status   => $analyze->{status},
+                    progress => $analyze->{progress},
+                    updated  => $analyze->{updated}
+                }
+            );
+        }
+    );
     return;
 }
 
@@ -527,6 +799,39 @@ sub DeleteAnalyze {
 }
 
 =back
+
+=head1 PRIVATE METHODS
+
+=item StoreAnalyze
+
+=cut
+
+sub StoreAnalyze {
+    my ( $self, $id ) = @_;
+
+    unless ( defined $id and exists $TEST{ $id } ) {
+        return;
+    }
+
+    $self->{db}->CreateAnalyze(
+        analyze => $TEST{ $id },
+        cb => sub {
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
+            }
+
+            if ( $@ ) {
+                $self->{logger}->error( 'Unable to store ', $id, ' in database, analyze will be lost: ', $@ );
+            }
+
+            delete $TEST{ $id };
+        }
+    );
+    return;
+}
 
 =head1 AUTHOR
 

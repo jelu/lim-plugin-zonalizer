@@ -18,29 +18,50 @@ my $db   = couchdb( $ARGV[0] );
 $db->drop->recv;
 $db->create->recv;
 
-req( PUT => '_design/zones', $JSON->encode( {
-    _id => '_design/zones',
+req( PUT => '_design/new_analysis', $JSON->encode( {
+    _id => '_design/new_analysis',
     views => {
         all => {
             map => '
 function (doc) {
-    emit([doc.id, null]);
+    if (doc.type == "new_analysis" || doc.type == "analysis") {
+        emit(doc.id);
+    }
+}
+'
+        }
+    }
+} ) )->recv;
+
+req( PUT => '_design/analysis', $JSON->encode( {
+    _id => '_design/analysis',
+    views => {
+        all => {
+            map => '
+function (doc) {
+    if (doc.type == "analysis") {
+        emit([doc.id, null]);
+    }
 }
 '
         },
         by_fqdn => {
             map => '
 function (doc) {
-    emit([doc.fqdn, null]);
+    if (doc.type == "analysis") {
+        emit([doc.fqdn, null]);
+    }
 }
 '
         },
         by_rfqdn => {
             map => '
 function (doc) {
-    var key = doc.fqdn.split(/\./).reverse();
-    key.push(null);
-    emit(key);
+    if (doc.type == "analysis") {
+        var key = doc.fqdn.split(/\./).reverse();
+        key.push(null);
+        emit(key);
+    }
 }
 '
         },
@@ -48,7 +69,9 @@ function (doc) {
             'by_' . $_ => {
                 map => '
 function (doc) {
-    emit([doc.' . $_ . ', doc.id, null]);
+    if (doc.type == "analysis") {
+        emit([doc.' . $_ . ', doc.id, null]);
+    }
 }
 '
               }

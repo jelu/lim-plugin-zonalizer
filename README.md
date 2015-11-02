@@ -10,6 +10,9 @@ The data model is structured with a top level object called `analyze` which
 contains information about the DNS tests that has been performed for a fully
 qualified domain name (FQDN).
 
+An analyze is kept in memory while its queued or analyzing then it's store into
+a database for future access and long term storage.
+
 ## Data Types
 
 The following data types are used:
@@ -168,9 +171,9 @@ Get status about API and analysis.
 * `analysis.completed`: Number of completed analysis.
 * `analysis.failed`: Number of failed analysis.
 
-### GET /zonalizer/1/analysis[?results=bool&lang=string]
+### GET /zonalizer/1/analysis[?ongoing=bool&results=bool&lang=string]
 
-Get a list of all analysis that exists in the database for Zonalizer.
+Get a list of all analysis that ongoing or in the database for Zonalizer.
 See `analyze` under Objects for description of the analyze object.
 
 ```
@@ -184,12 +187,13 @@ See `analyze` under Objects for description of the analyze object.
 }
 ```
 
+* `ongoing`: If true (1), show only ongoing analysis. Default false (0).
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default false (0).
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
-### GET /zonalizer/1/analysis?search=string[&results=bool&lang=string]
+### GET /zonalizer/1/analysis?search=string[&ongoing=bool&results=bool&lang=string]
 
 Search for analysis which FQDN matches the given string.  If prefixed with a dot
 then all subdomains are returned.  For example `.com` will return all analysis
@@ -209,6 +213,7 @@ See `analyze` under Objects for description of the analyze object.
 
 * `search`: A string with the domainname to search for.  If prefixed with a dot,
   matches all ending with the string.
+* `ongoing`: If true (1), show only ongoing analysis. Default false (0).
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default false (0).
 * `lang`: Specify the language to use when generating the `message` in the
@@ -274,6 +279,7 @@ The main analyze object which may include all results from Zonemaster.
 {
   "id": "uuid",
   "fqdn": "string",
+  "url": "href",
   "status": "string",
   "error": error,
   "progress": integer,
@@ -289,6 +295,7 @@ The main analyze object which may include all results from Zonemaster.
 
 * `id`: The UUID of the analyze.
 * `fqdn`: The FQDN of the analyze.
+* `url`: The URL to this object.
 * `status`: The status of the check, see Check Statuses.
 * `error`: An object describing an error, see `error` under Objects.  (optional)
 * `progress`: The progress of the check as an integer with the percent of
