@@ -198,14 +198,21 @@ sub Calls {
 
         ReadAnalysis => {
             in => {
-                version => 'integer',
-                ongoing => 'integer optional',
-                results => 'integer optional',
-                lang => 'string optional'
+                version   => 'integer',
+                ongoing   => 'integer optional',
+                results   => 'integer optional',
+                lang      => 'string optional',
+                limit     => 'integer optional',
+                before    => 'string optional',
+                after     => 'string optional',
+                sort      => 'string optional',
+                direction => 'string optional',
+                base_url  => 'integer optional'
             },
             out => {
                 analysis => {
                     id       => 'string',
+                    url      => 'string',
                     fqdn     => 'string',
                     status   => 'string',
                     error    => {
@@ -215,7 +222,24 @@ sub Calls {
                     progress => 'integer',
                     created  => 'integer',
                     updated  => 'integer',
-                    results  => { '' => 'swallow' }
+                    results  => { '' => 'swallow' },
+                    summary  => {
+                        '' => 'single',
+                        notice => 'integer',
+                        warning => 'integer',
+                        error => 'integer',
+                        critical => 'integer'
+                    }
+                },
+                paging => {
+                    ''      => 'single',
+                    cursors => {
+                        ''     => 'required single',
+                        after  => 'string',
+                        before => 'string'
+                    },
+                    previous => 'string optional',
+                    next     => 'string optional'
                 }
             }
         },
@@ -242,6 +266,7 @@ sub Calls {
             },
             out => {
                 id       => 'string',
+                url      => 'string',
                 fqdn     => 'string',
                 status   => 'string',
                 error    => {
@@ -251,7 +276,14 @@ sub Calls {
                 progress => 'integer',
                 created  => 'integer',
                 updated  => 'integer',
-                results  => { '' => 'swallow' }
+                results  => { '' => 'swallow' },
+                summary  => {
+                    '' => 'single',
+                    notice => 'integer',
+                    warning => 'integer',
+                    error => 'integer',
+                    critical => 'integer'
+                }
             }
         },
         ReadAnalyzeStatus => {

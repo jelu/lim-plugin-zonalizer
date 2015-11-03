@@ -193,32 +193,6 @@ See `analyze` under Objects for description of the analyze object.
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
-### GET /zonalizer/1/analysis?search=string[&ongoing=bool&results=bool&lang=string]
-
-Search for analysis which FQDN matches the given string.  If prefixed with a dot
-then all subdomains are returned.  For example `.com` will return all analysis
-ending with `.com` but `example.com` will only return analysis for that FQDN.
-See `analyze` under Objects for description of the analyze object.
-
-```
-{
-  "analysis": [
-    analyze,
-    analyze,
-    ...
-  ],
-  "paging": ...
-}
-```
-
-* `search`: A string with the domainname to search for.  If prefixed with a dot,
-  matches all ending with the string.
-* `ongoing`: If true (1), show only ongoing analysis. Default false (0).
-* `results`: If true (1), include `results` in the `analyze` objects in the
-  response. Default false (0).
-* `lang`: Specify the language to use when generating the `message` in the
-  `result` object and in the `error` object, default en_US.UTF-8.
-
 ### DELETE /zonalizer/1/analysis
 
 Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
@@ -289,7 +263,13 @@ The main analyze object which may include all results from Zonemaster.
     result,
     result,
     ...
-  ]
+  ],
+  "summary": {
+    "notice": integer,
+    "warning": integer,
+    "error": integer,
+    "critical": integer
+  }
 }
 ```
 
@@ -303,6 +283,10 @@ The main analyze object which may include all results from Zonemaster.
 * `created`: The date and time of when the object was created.
 * `updated`: The date and time of when the object was last updated.
 * `results`: An array containing `result` objects.  (optional)
+* `summary.notice`: The number of NOTICE results in `results`.
+* `summary.warning`: The number of WARNING results in `results`.
+* `summary.error`: The number of ERROR results in `results`.
+* `summary.critical`: The number of CRITICAL results in `results`.
 
 ### error
 

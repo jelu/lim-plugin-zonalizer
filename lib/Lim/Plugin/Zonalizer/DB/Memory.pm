@@ -121,10 +121,7 @@ sub ReadAnalysis {
                 @sort = sort { $b->{ $args{sort} } <=> $a->{ $args{sort} } } @{ $self->{analysis} };
             }
             else {
-                # Confessing here to have full coverage, can implement if textual fields are introduced
-                confess 'TODO: Implement text sorting';
-
-                # @sort = sort { $b->{ $args{sort} } cmp $a->{ $args{sort} } } @{ $self->{analysis} };
+                @sort = sort { $b->{ $args{sort} } cmp $a->{ $args{sort} } } @{ $self->{analysis} };
             }
             $analysis = \@sort;
         }
@@ -134,10 +131,7 @@ sub ReadAnalysis {
                 @sort = sort { $a->{ $args{sort} } <=> $b->{ $args{sort} } } @{ $self->{analysis} };
             }
             else {
-                # Confessing here to have full coverage, can implement if textual fields are introduced
-                confess 'TODO: Implement text sorting';
-
-                # @sort = sort { $a->{ $args{sort} } cmp $b->{ $args{sort} } } @{ $self->{analysis} };
+                @sort = sort { $a->{ $args{sort} } cmp $b->{ $args{sort} } } @{ $self->{analysis} };
             }
             $analysis = \@sort;
         }

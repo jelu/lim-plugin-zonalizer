@@ -7,15 +7,30 @@ use AnyEvent::CouchDB;
 use AnyEvent::HTTP;
 use JSON;
 use OSSP::uuid;
+use Getopt::Long;
+
+my $drop = 0;
+my $test = 0;
+
+GetOptions(
+    'drop' => \$drop,
+    'test' => \$test
+);
 
 unless ( $ARGV[0] ) {
-    die 'usage: zonalizer-create-database <uri>'
+    die 'usage: zonalizer-create-database [--drop|--test] <uri>'
 }
 
 my $JSON = JSON->new;
 my $db   = couchdb( $ARGV[0] );
 
-$db->drop->recv;
+if ( $drop ) {
+    eval {
+        $db->drop->recv;
+    };
+    undef $@;
+}
+
 $db->create->recv;
 
 req( PUT => '_design/new_analysis', $JSON->encode( {
@@ -24,7 +39,7 @@ req( PUT => '_design/new_analysis', $JSON->encode( {
         all => {
             map => '
 function (doc) {
-    if (doc.type == "new_analysis" || doc.type == "analysis") {
+    if (doc.type == "new_analyze" || doc.type == "analyze") {
         emit(doc.id);
     }
 }
@@ -39,45 +54,88 @@ req( PUT => '_design/analysis', $JSON->encode( {
         all => {
             map => '
 function (doc) {
-    if (doc.type == "analysis") {
+    if (doc.type == "analyze") {
         emit([doc.id, null]);
     }
 }
 '
         },
-        by_fqdn => {
-            map => '
-function (doc) {
-    if (doc.type == "analysis") {
-        emit([doc.fqdn, null]);
-    }
-}
-'
-        },
-        by_rfqdn => {
-            map => '
-function (doc) {
-    if (doc.type == "analysis") {
-        var key = doc.fqdn.split(/\./).reverse();
-        key.push(null);
-        emit(key);
-    }
-}
-'
-        },
-        map {
+        map( {
             'by_' . $_ => {
                 map => '
 function (doc) {
-    if (doc.type == "analysis") {
+    if (doc.type == "analyze") {
         emit([doc.' . $_ . ', doc.id, null]);
     }
 }
 '
               }
-        } ( qw(created updated) )
+        } ( qw(fqdn created updated) ) ),
+#        fqdn => {
+#            map => '
+#function (doc) {
+#    if (doc.type == "analyze") {
+#        var key = doc.fqdn.split(/\./).reverse();
+#        key.push(null);
+#        emit([key, doc.id, null]);
+#    }
+#}
+#'
+#        },
+#        map( {
+#            'fqdn_by_' . $_ => {
+#                map => '
+#function (doc) {
+#    if (doc.type == "analyze") {
+#        var key = doc.fqdn.split(/\./).reverse();
+#        key.push(null);
+#        emit([key, doc.' . $_ . ', doc.id, null]);
+#    }
+#}
+#'
+#              }
+#        } ( qw(created updated) ) )
     }
 } ) )->recv;
+
+if ( $test ) {
+    my $tlds = 10;
+
+    while ( $tlds-- ) {
+        my $tld = rndStr( 5, 'a' .. 'z' );
+        my $zones = 10;
+
+        while ( $zones-- ) {
+            my $zone = rndStr( 12, 'a' .. 'z' );
+            my $analysis = 4;
+
+            while ( $analysis-- ) {
+                my $uuid = OSSP::uuid->new;
+                $uuid->make( 'v4' );
+
+                $db->save_doc({
+                    type => 'analyze',
+                    id => MIME::Base64::encode_base64url( $uuid->export( "bin" ) ),
+                    fqdn     => join('.', $zone, $tld),
+                    status   => 'done',
+                    progress => 100,
+                    created  => time - 10 - int(rand(10)) - (30 * $analysis),
+                    updated  => time + int(rand(5)) - (30 * $analysis),
+                    summary  => {
+                        notice => 0 + int(rand(2)),
+                        warning => 0 + int(rand(1)),
+                        error => 0 + int(rand(1)),
+                        critical => 0 + int(rand(1))
+                    }
+                })->recv;
+            }
+        }
+    }
+}
+
+sub rndStr {
+    return join '', @_[ map { rand @_ } 1 .. shift ];
+}
 
 sub req {
     my ( $method, $path, $body ) = @_;
@@ -93,7 +151,7 @@ sub req {
                 $cv->send( $body );
             }
             else {
-                $cv->croak( $headers->{Status} . ' - ' . $headers->{Reason} . ' - ' . $headers->{URL} );
+                $cv->croak( $db->uri . $path . ': ' . $headers->{Status} . ' - ' . $headers->{Reason} . ' - ' . $headers->{URL} );
             }
         }
     );

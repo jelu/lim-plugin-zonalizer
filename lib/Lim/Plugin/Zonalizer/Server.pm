@@ -15,6 +15,7 @@ use AnyEvent         ();
 use AnyEvent::Handle ();
 use JSON::XS         ();
 use HTTP::Status     ();
+use URI::Escape::XS  qw(uri_escape);
 
 use base qw(Lim::Component::Server);
 
@@ -95,6 +96,10 @@ sub Init {
 
             $self->{db_conf} = Lim->Config->{zonalizer}->{db_conf};
         }
+    }
+
+    if ( exists $self->{custom_base_url} ) {
+        $self->{custom_base_url} =~ s/[\/\s]+$//o;
     }
 
     # Load database
@@ -256,6 +261,7 @@ sub ReadAnalysis {
             unless ( $q->{results} ) {
                 delete $test{results};
             }
+            $test{url} = $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $test{id} );
 
             push( @analysis, \%test );
 
@@ -264,7 +270,7 @@ sub ReadAnalysis {
             }
         }
 
-        $self->Successful( $cb, { analyze => \@analysis } );
+        $self->Successful( $cb, { analysis => \@analysis } );
         return;
     }
 
@@ -330,6 +336,12 @@ sub ReadAnalysis {
                         updated  => $_->{updated},
                         exists $_->{error} ? ( error => $_->{error} ) : (),
                         defined $q->{results} && $q->{results} == 1 && exists $_->{results} ? ( results => $_->{results} ) : (),
+                        summary => {
+                            notice => $_->{summary}->{notice},
+                            warning => $_->{summary}->{warning},
+                            error => $_->{summary}->{error},
+                            critical => $_->{summary}->{critical}
+                        }
                     }
                 );
             }
@@ -416,7 +428,13 @@ sub CreateAnalyze {
         status   => 'analyzing',
         progress => 0,
         created  => time,
-        updated  => time
+        updated  => time,
+        summary  => {
+            notice => 0,
+            warning => 0,
+            error => 0,
+            critical => 0
+        }
     };
 
     my $cli;
@@ -440,7 +458,7 @@ sub CreateAnalyze {
         $test->{status} = 'failed';
     };
     my $store = sub {
-        $self->StoreAnalyze( $test );
+        $self->StoreAnalyze( $id );
     };
     $handle = AnyEvent::Handle->new(
         fh      => $cli,
@@ -491,6 +509,19 @@ sub CreateAnalyze {
 
                     if ( $msg->{level} eq 'DEBUG' ) {
                         next;
+                    }
+
+                    if ( $msg->{level} eq 'NOTICE' ) {
+                        $test->{summary}->{notice}++;
+                    }
+                    elsif ( $msg->{level} eq 'WARNING' ) {
+                        $test->{summary}->{warning}++;
+                    }
+                    elsif ( $msg->{level} eq 'ERROR' ) {
+                        $test->{summary}->{error}++;
+                    }
+                    elsif ( $msg->{level} eq 'CRITICAL' ) {
+                        $test->{summary}->{critical}++;
                     }
 
                     $msg->{_id} = $result_id++;
@@ -595,22 +626,18 @@ sub ReadAnalyze {
     #
 
     if ( exists $TEST{ $q->{id} } ) {
+        my %test = %{ $TEST{ $q->{id} } };
+        $test{url} = $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $test{id} );
+
         if ( exists $q->{last_results} and $q->{last_results} ) {
-            my %test = %{ $TEST{ $q->{id} } };
             my $results = delete $test{results};
             $test{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
-            $self->Successful( $cb, \%test );
-            return;
         }
-
-        if ( exists $q->{results} and !$q->{results} ) {
-            my %test = %{ $TEST{ $q->{id} } };
+        elsif ( exists $q->{results} and !$q->{results} ) {
             delete $test{results};
-            $self->Successful( $cb, \%test );
-            return;
         }
 
-        $self->Successful( $cb, $TEST{ $q->{id} } );
+        $self->Successful( $cb, \%test );
         return;
     }
 
@@ -682,6 +709,12 @@ sub ReadAnalyze {
                     updated  => $analyze->{updated},
                     exists $analyze->{error} ? ( error => $analyze->{error} ) : (),
                     exists $analyze->{results} ? ( results => $analyze->{results} ) : (),
+                    summary => {
+                        notice => $analyze->{summary}->{notice},
+                        warning => $analyze->{summary}->{warning},
+                        error => $analyze->{summary}->{error},
+                        critical => $analyze->{summary}->{critical}
+                    }
                 }
             );
         }
@@ -812,6 +845,8 @@ sub StoreAnalyze {
     unless ( defined $id and exists $TEST{ $id } ) {
         return;
     }
+
+    $self->{logger}->debug('Storing ', $id);
 
     $self->{db}->CreateAnalyze(
         analyze => $TEST{ $id },
