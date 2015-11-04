@@ -249,21 +249,20 @@ sub ReadAnalysis {
                 return;
             }
 
-            unless ( defined $search_fqdn2 ) {
-                $code->();
-                return;
-            }
-
             #
             # We need to swap after/before since we are using a descending
-            # view when doing subdomain searches but HandleResponse does not
-            # know about this.
+            # view to do reverse lookup
             #
             if ( $reverse ) {
                 my $a = $after;
                 my $b = $before;
                 $before = $a;
                 $after  = $b;
+            }
+
+            unless ( defined $search_fqdn2 ) {
+                $code->();
+                return;
             }
 
             # TODO: Can this be solved in a better way then fetching previous/next with skip?
