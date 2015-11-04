@@ -176,6 +176,8 @@ Get status about API and analysis.
 Get a list of all analysis that ongoing or in the database for Zonalizer.
 See `analyze` under Objects for description of the analyze object.
 
+The following fields are sortable: `fqdn`, `created` and `updated`.
+
 ```
 {
   "analysis": [
