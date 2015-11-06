@@ -17,7 +17,7 @@ use Clone qw(clone);
 use base qw(Lim::Plugin::Zonalizer::DB);
 
 our %VALID_ORDER_FIELD = (
-    analysis => { map { $_ => 1 } ( qw(fqdn created updated) ) }
+    analysis => { fqdn => 0, map { $_ => 1 } ( qw(created updated) ) }
 );
 our $ID_DELIMITER = ':';
 
