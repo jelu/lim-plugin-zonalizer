@@ -87,7 +87,8 @@ sub Init {
     $self->{base_url}          = 1;
     $self->{db_driver}         = 'Memory';
     $self->{db_conf}           = {};
-    $self->{lang}              = 'en_US';
+    $self->{lang}              = $ENV{LC_MESSAGES} || $ENV{LC_ALL} || $ENV{LANG} || $ENV{LANGUAGE} || 'en_US';
+    $self->{lang}              =~ s/\..*$//o;
 
     #
     # Load configuration
