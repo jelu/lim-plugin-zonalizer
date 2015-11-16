@@ -17,6 +17,10 @@ use JSON::XS         ();
 use HTTP::Status     ();
 use URI::Escape::XS  qw(uri_escape);
 
+use Zonemaster::Translator ();
+use Zonemaster::Logger::Entry ();
+use POSIX qw(setlocale LC_MESSAGES);
+
 use base qw(Lim::Component::Server);
 
 =encoding utf8
@@ -47,6 +51,8 @@ our %STAT    = (
 
 our %TEST;
 
+our $TRANSLATOR;
+
 =head1 SYNOPSIS
 
   use Lim::Plugin::Zonalizer;
@@ -72,18 +78,23 @@ sub Init {
     my $real_self = $self;
     weaken( $self );
 
+    #
     # Default configuration
+    #
 
     $self->{default_limit}     = 10;
     $self->{max_limit}         = 10;
     $self->{base_url}          = 1;
     $self->{db_driver}         = 'Memory';
     $self->{db_conf}           = {};
+    $self->{lang}              = 'en_US';
 
+    #
     # Load configuration
+    #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url) ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang) ) {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
             }
@@ -102,7 +113,9 @@ sub Init {
         $self->{custom_base_url} =~ s/[\/\s]+$//o;
     }
 
+    #
     # Load database
+    #
 
     my $db_driver = 'Lim::Plugin::Zonalizer::DB::' . $self->{db_driver};
     eval 'use ' . $db_driver . ';';
@@ -111,7 +124,24 @@ sub Init {
     }
     $self->{db} = $db_driver->new( %{ $self->{db_conf} } );
 
+    #
+    # Build translator
+    #
+
+    unless ( $self->{lang} =~ /^[a-z]{2}_[A-Z]{2}$/o ) {
+        confess 'Invalid language set for translations';
+    }
+
+    $TRANSLATOR = Zonemaster::Translator->new;
+    $TRANSLATOR->data;
+
+    unless ( setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' ) ) {
+        confess 'Unsupported locale, setlocale( ' . $self->{lang} . '.UTF-8 ) failed: ' . $!;
+    }
+
+    #
     # Temporary memory scrubber
+    #
 
     $self->{cleaner} = AnyEvent->timer(after => 60, interval => 60, cb => sub {
         unless ( $self ) {
@@ -249,6 +279,23 @@ sub ReadAnalysis {
     }
 
     #
+    # Get translator
+    #
+
+    my ( $translator, $lang, $error ) = $self->GetTranslator( $q->{lang} );
+
+    unless ( $translator and $lang ) {
+        $self->Error(
+            $cb,
+            $error ? $error : Lim::Error->new(
+                module => $self,
+                code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+            )
+        );
+        return;
+    }
+
+    #
     # Returned in memory ongoing analysis if requested.
     #
 
@@ -260,6 +307,21 @@ sub ReadAnalysis {
 
             unless ( $q->{results} ) {
                 delete $test{results};
+            }
+            else {
+                my @results;
+
+                setlocale( LC_MESSAGES, $lang . '.UTF-8' );
+                foreach my $result ( @{ $test{results} } ) {
+                    my $entry = Zonemaster::Logger::Entry->new( $result );
+                    push( @results, {
+                        %$result,
+                        message => $translator->translate_tag( $entry )
+                    });
+                }
+                setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
+
+                $test{results} = \@results;
             }
             $test{url} = $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $test{id} );
 
@@ -323,6 +385,20 @@ sub ReadAnalysis {
             # Construct the result
             #
 
+            if ( defined $q->{results} and $q->{results} == 1 ) {
+                setlocale( LC_MESSAGES, $lang . '.UTF-8' );
+                foreach ( @_ ) {
+                    unless ( ref( $_->{results} ) eq 'ARRAY' ) {
+                        next;
+                    }
+
+                    foreach my $result ( @{ $_->{results} } ) {
+                        my $entry = Zonemaster::Logger::Entry->new( $result );
+                        $result->{message} = $translator->translate_tag( $entry );
+                    }
+                }
+                setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
+            }
             foreach ( @_ ) {
                 push(
                     @analysis,
@@ -438,7 +514,7 @@ sub CreateAnalyze {
     };
 
     my $cli;
-    unless ( open( $cli, '-|:encoding(UTF-8)', 'zonemaster-cli', qw(--json_stream --json_translate --no-ipv6 --level DEBUG), $q->{fqdn} ) ) {
+    unless ( open( $cli, '-|:encoding(UTF-8)', 'zonemaster-cli', qw(--json_stream --no-ipv6 --level DEBUG), $q->{fqdn} ) ) {
         $STAT{analysis}->{failed}++;
         $self->Error( $cb, 'no' );
         return;
@@ -622,6 +698,23 @@ sub ReadAnalyze {
     }
 
     #
+    # Get translator
+    #
+
+    my ( $translator, $lang, $error ) = $self->GetTranslator( $q->{lang} );
+
+    unless ( $translator and $lang ) {
+        $self->Error(
+            $cb,
+            $error ? $error : Lim::Error->new(
+                module => $self,
+                code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+            )
+        );
+        return;
+    }
+
+    #
     # Check for analyze in memory.
     #
 
@@ -635,6 +728,22 @@ sub ReadAnalyze {
         }
         elsif ( exists $q->{results} and !$q->{results} ) {
             delete $test{results};
+        }
+
+        if ( exists $test{results} ) {
+            my @results;
+
+            setlocale( LC_MESSAGES, $lang . '.UTF-8' );
+            foreach my $result ( @{ $test{results} } ) {
+                my $entry = Zonemaster::Logger::Entry->new( $result );
+                push( @results, {
+                    %$result,
+                    message => $translator->translate_tag( $entry )
+                });
+            }
+            setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
+
+            $test{results} = \@results;
         }
 
         $self->Successful( $cb, \%test );
@@ -695,6 +804,15 @@ sub ReadAnalyze {
             }
             elsif ( exists $q->{results} and !$q->{results} ) {
                 delete $analyze->{results};
+            }
+
+            if ( exists $analyze->{results} ) {
+                setlocale( LC_MESSAGES, $lang . '.UTF-8' );
+                foreach my $result ( @{ $analyze->{results} } ) {
+                    my $entry = Zonemaster::Logger::Entry->new( $result );
+                    $result->{message} = $translator->translate_tag( $entry );
+                }
+                setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
 
             $self->Successful(
@@ -866,6 +984,38 @@ sub StoreAnalyze {
         }
     );
     return;
+}
+
+=item GetTranslator
+
+=cut
+
+sub GetTranslator {
+    my ( $self, $lang ) = @_;
+
+    unless ( $lang ) {
+        $lang = $self->{lang};
+    }
+
+    unless ( $lang =~ /^[a-z]{2}_[A-Z]{2}$/o and setlocale( LC_MESSAGES, $lang . '.UTF-8' ) ) {
+
+        # uncoverable branch false
+        Lim::ERR and $self->{logger}->error( 'Invalid language ', $lang );
+
+        return (
+            undef,
+            undef,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_UNSUPPORTED_MEDIA_TYPE,
+                message => 'invalid_lang'
+            )
+        );
+    }
+
+    setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
+
+    return ( $TRANSLATOR, $lang );
 }
 
 =head1 AUTHOR

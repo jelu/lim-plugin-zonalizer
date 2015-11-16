@@ -426,6 +426,10 @@ An invalid `fqdn` parameter was supplied.
 
 The queue is full so the request has been dropped.
 
+#### invalid_lang
+
+An invalid `lang` parameter was supplied.
+
 ### HTTP Errors
 
 These are the HTTP status errors returned, additional errors may be returned
@@ -440,6 +444,11 @@ invalid.  See `message` for the corresponding API error.
 
 Indicates that the requested id was not found, see `message` for the
 corresponding API error.
+
+#### 415 UNSUPPORTED MEDIA TYPE
+
+Indicates that requested media type or languages are unsupported, see `message`
+for the corresponding API error.
 
 #### 500 INTERNAL SERVER ERROR
 

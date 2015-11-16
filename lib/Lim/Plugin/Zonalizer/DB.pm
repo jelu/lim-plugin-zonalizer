@@ -391,7 +391,7 @@ sub ValidateResult {
     unless ( ref( $result ) eq 'HASH' ) {
         confess 'result is not HASH';
     }
-    foreach ( qw(_id level module tag timestamp message) ) {
+    foreach ( qw(_id level module tag timestamp) ) {
         unless ( defined $result->{$_} ) {
             confess 'result->' . $_ . ' is not defined';
         }

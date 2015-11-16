@@ -222,7 +222,15 @@ sub Calls {
                     progress => 'integer',
                     created  => 'integer',
                     updated  => 'integer',
-                    results  => { '' => 'swallow' },
+                    results  => {
+                        _id => 'integer',
+                        args => { '' => 'swallow' },
+                        level => 'string',
+                        module => 'string',
+                        tag => 'string',
+                        timestamp => 'integer',
+                        message => 'string'
+                    },
                     summary  => {
                         '' => 'single',
                         notice => 'integer',
@@ -276,7 +284,15 @@ sub Calls {
                 progress => 'integer',
                 created  => 'integer',
                 updated  => 'integer',
-                results  => { '' => 'swallow' },
+                results  => {
+                    _id => 'integer',
+                    args => { '' => 'swallow' },
+                    level => 'string',
+                    module => 'string',
+                    tag => 'string',
+                    timestamp => 'integer',
+                    message => 'string'
+                },
                 summary  => {
                     '' => 'single',
                     notice => 'integer',
