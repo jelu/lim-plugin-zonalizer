@@ -33,120 +33,30 @@ if ( $drop or $create ) {
     $db->create->recv;
 }
 else {
-    my $doc;
-    $doc = req( GET => '_design/new_analysis' )->recv;
-    $doc = $JSON->decode($doc);
-    req( DELETE => '_design/new_analysis?rev='.$doc->{_rev} )->recv;
-    $doc = req( GET => '_design/analysis' )->recv;
-    $doc = $JSON->decode($doc);
-    req( DELETE => '_design/analysis?rev='.$doc->{_rev} )->recv;
-}
-
-req( PUT => '_design/new_analysis', $JSON->encode( {
-    _id => '_design/new_analysis',
-    views => {
-        all => {
-            map => '
-function (doc) {
-    if (doc.type == "new_analyze" || doc.type == "analyze") {
-        emit(doc.id);
-    }
-}
-'
+    foreach ( keys %{schema()} ) {
+        my $doc;
+        eval {
+            $doc = req( GET => $_ )->recv;
+        };
+        if ( $@ ) {
+            undef $@;
+            next;
         }
-    }
-} ) )->recv;
-
-req( PUT => '_design/analysis', $JSON->encode( {
-    _id => '_design/analysis',
-    views => {
-        all => {
-            map => '
-function (doc) {
-    if (doc.type == "analyze") {
-        emit([doc.id, null]);
+        $doc = $JSON->decode($doc);
+        say 'Deleting design ', $doc->{_id};
+        req( DELETE => $_.'?rev='.$doc->{_rev} )->recv;
     }
 }
-'
-        },
-        map( {
-            'by_' . $_ => {
-                map => '
-function (doc) {
-    if (doc.type == "analyze") {
-        emit([doc.' . $_ . ', doc.id, null]);
-    }
+
+foreach ( keys %{schema()} ) {
+    say 'Creating ', $_;
+    req( PUT => $_, $JSON->encode( {
+        %{ schema()->{$_} },
+        _id => $_
+    } ) )->recv;
 }
-'
-              }
-        } ( qw(fqdn created updated) ) ),
-#        fqdn => {
-#            map => '
-#function (doc) {
-#    if (doc.type == "analyze") {
-#        var key = doc.fqdn.split(/\./).reverse();
-#        key.push(null);
-#        emit([key, doc.id, null]);
-#    }
-#}
-#'
-#        },
-#        map( {
-#            'fqdn_by_' . $_ => {
-#                map => '
-#function (doc) {
-#    if (doc.type == "analyze") {
-#        var key = doc.fqdn.split(/\./).reverse();
-#        key.push(null);
-#        emit([key, doc.' . $_ . ', doc.id, null]);
-#    }
-#}
-#'
-#              }
-#        } ( qw(created updated) ) )
-    }
-} ) )->recv;
 
-if ( $test ) {
-    my $tlds = 10;
-
-    while ( $tlds-- ) {
-        my $tld = rndStr( 5, 'a' .. 'z' );
-        my $zones = 10;
-
-        while ( $zones-- ) {
-            my $zone = rndStr( 12, 'a' .. 'z' );
-            my $analysis = 4;
-
-            while ( $analysis-- ) {
-                my $uuid = OSSP::uuid->new;
-                $uuid->make( 'v4' );
-
-                $db->save_doc({
-                    type => 'analyze',
-                    id => MIME::Base64::encode_base64url( $uuid->export( "bin" ) ),
-                    fqdn     => join('.', $zone, $tld),
-                    status   => 'done',
-                    progress => 100,
-                    created  => time - 10 - int(rand(10)) - (30 * $analysis),
-                    updated  => time + int(rand(5)) - (30 * $analysis),
-                    summary  => {
-                        notice => 0 + int(rand(2)),
-                        warning => 0 + int(rand(1)),
-                        error => 0 + int(rand(1)),
-                        critical => 0 + int(rand(1))
-                    },
-                    results => [
-                    {
-                        _id => 1,
-                        message => 'dnfsjkdhfsdjkhfsd'
-                    }
-                    ]
-                })->recv;
-            }
-        }
-    }
-}
+exit;
 
 sub rndStr {
     return join '', @_[ map { rand @_ } 1 .. shift ];
@@ -172,6 +82,72 @@ sub req {
     );
 
     return $cv;
+}
+
+sub schema {
+    return {
+        '_design/new_analysis' => {
+            views => {
+                all => {
+                    map => '
+function (doc) {
+    if (doc.type == "new_analyze" || doc.type == "analyze") {
+        emit(doc.id);
+    }
+}
+'
+                }
+            }
+        },
+        '_design/analysis' => {
+            views => {
+                all => {
+                    map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        emit([doc.id, null]);
+    }
+}
+'
+                },
+                map( {
+                    'by_' . $_ => {
+                        map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        emit([doc.' . $_ . ', doc.id, null]);
+    }
+}
+'
+                      }
+                } ( qw(fqdn created updated) ) ),
+#                fqdn => {
+#                    map => '
+#        function (doc) {
+#            if (doc.type == "analyze") {
+#                var key = doc.fqdn.split(/\./).reverse();
+#                key.push(null);
+#                emit([key, doc.id, null]);
+#            }
+#        }
+#        '
+#                },
+#                map( {
+#                    'fqdn_by_' . $_ => {
+#                        map => '
+#        function (doc) {
+#            if (doc.type == "analyze") {
+#                var key = doc.fqdn.split(/\./).reverse();
+#                key.push(null);
+#                emit([key, doc.' . $_ . ', doc.id, null]);
+#            }
+#        }
+#        '
+#                      }
+#                } ( qw(created updated) ) )
+            }
+        }
+    };
 }
 
 =head1 NAME
