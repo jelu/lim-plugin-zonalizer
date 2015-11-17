@@ -10,28 +10,37 @@ use OSSP::uuid;
 use Getopt::Long;
 
 my $drop = 0;
+my $create = 0;
 my $test = 0;
 
 GetOptions(
     'drop' => \$drop,
+    'create' => \$create,
     'test' => \$test
 );
 
 unless ( $ARGV[0] ) {
-    die 'usage: zonalizer-create-database [--drop|--test] <uri>'
+    die 'usage: zonalizer-create-database [--drop|--create|--test] <uri>'
 }
 
 my $JSON = JSON->new;
 my $db   = couchdb( $ARGV[0] );
 
 if ( $drop ) {
-    eval {
-        $db->drop->recv;
-    };
-    undef $@;
+    $db->drop->recv;
 }
-
-$db->create->recv;
+if ( $drop or $create ) {
+    $db->create->recv;
+}
+else {
+    my $doc;
+    $doc = req( GET => '_design/new_analysis' )->recv;
+    $doc = $JSON->decode($doc);
+    req( DELETE => '_design/new_analysis?rev='.$doc->{_rev} )->recv;
+    $doc = req( GET => '_design/analysis' )->recv;
+    $doc = $JSON->decode($doc);
+    req( DELETE => '_design/analysis?rev='.$doc->{_rev} )->recv;
+}
 
 req( PUT => '_design/new_analysis', $JSON->encode( {
     _id => '_design/new_analysis',
@@ -126,7 +135,13 @@ if ( $test ) {
                         warning => 0 + int(rand(1)),
                         error => 0 + int(rand(1)),
                         critical => 0 + int(rand(1))
+                    },
+                    results => [
+                    {
+                        _id => 1,
+                        message => 'dnfsjkdhfsdjkhfsd'
                     }
+                    ]
                 })->recv;
             }
         }
