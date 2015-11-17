@@ -9,6 +9,8 @@ use JSON;
 use OSSP::uuid;
 use Getopt::Long;
 
+STDOUT->autoflush(1);
+
 my $drop = 0;
 my $create = 0;
 my $test = 0;
@@ -32,56 +34,93 @@ if ( $drop ) {
 if ( $drop or $create ) {
     $db->create->recv;
 }
-else {
-    foreach ( keys %{schema()} ) {
+
+foreach ( keys %{schema()} ) {
+    if ( $drop or $create ) {
+        say 'Creating ', $_;
+    }
+    else {
         my $doc;
         eval {
             $doc = req( GET => $_ )->recv;
         };
-        if ( $@ ) {
-            undef $@;
-            next;
-        }
-        $doc = $JSON->decode($doc);
-        say 'Deleting design ', $doc->{_id};
-        req( DELETE => $_.'?rev='.$doc->{_rev} )->recv;
-    }
-}
 
-foreach ( keys %{schema()} ) {
-    say 'Creating ', $_;
+        unless ( $@ ) {
+            say 'Recreating ', $_;
+
+            $doc = $JSON->decode($doc);
+            unless ( ref($doc) eq 'HASH' and $doc->{_rev} ) {
+                die 'Unexpected return or missing data from CouchDB when reading design';
+            }
+            req( DELETE => $_.'?rev='.$doc->{_rev} )->recv;
+        }
+        undef $@;
+    }
     req( PUT => $_, $JSON->encode( {
         %{ schema()->{$_} },
         _id => $_
     } ) )->recv;
 }
 
-exit;
+print 'Checking objects ... ';
+my $skip = 0;
+my $changed = 0;
 
-sub rndStr {
-    return join '', @_[ map { rand @_ } 1 .. shift ];
+while ( 1 ) {
+    my $list = req( GET => '_design/analysis/_view/all?include_docs=true&limit=5&skip='.$skip )->recv;
+    $list = $JSON->decode( $list );
+    unless ( ref($list) eq 'HASH'
+        and defined $list->{total_rows}
+        and defined $list->{offset}
+        and ref($list->{rows}) eq 'ARRAY' )
+    {
+        die 'Unexpected return or missing data from CouchDB when listing analysis';
+    }
+
+    my @docs;
+    foreach ( @{$list->{rows}}) {
+        unless ( ref($_) eq 'HASH'
+            and defined $_->{id}
+            and ref( $_->{doc}) eq 'HASH' )
+        {
+            die 'Unexpected return or missing data from CouchDB when reading list of analysis';
+        }
+
+        push(@docs, $_->{doc});
+    }
+
+    foreach (@docs) {
+        if ( check( $_ ) ) {
+            $db->save_doc( $_ )->recv;
+            $changed++;
+        }
+
+        $skip++;
+        print "\r", 'Checking objects ... ', $skip, ' / ', $list->{total_rows}, ' (changed: ', $changed, ')';
+    }
+
+    unless ( $skip < $list->{total_rows} ) {
+        say;
+        last;
+    }
 }
 
-sub req {
-    my ( $method, $path, $body ) = @_;
-    my $cv = AnyEvent->condvar;
+exit;
 
-    http_request(
-        $method => $db->uri . $path,
-        headers => $db->_build_headers( {} ),
-        body    => $body,
-        sub {
-            my ( $body, $headers ) = @_;
-            if ( $headers->{Status} >= 200 and $headers->{Status} < 400 ) {
-                $cv->send( $body );
-            }
-            else {
-                $cv->croak( $db->uri . $path . ': ' . $headers->{Status} . ' - ' . $headers->{Reason} . ' - ' . $headers->{URL} );
+sub check {
+    my ( $doc ) = @_;
+    my $changed = 0;
+
+    if ( ref($doc->{results}) eq 'ARRAY' ) {
+        foreach ( @{$doc->{results}}) {
+            if ( exists $_->{message} ) {
+                delete $_->{message};
+                $changed = 1;
             }
         }
-    );
+    }
 
-    return $cv;
+    return $changed;
 }
 
 sub schema {
@@ -92,6 +131,15 @@ sub schema {
                     map => '
 function (doc) {
     if (doc.type == "new_analyze" || doc.type == "analyze") {
+        emit(doc.id);
+    }
+}
+'
+                },
+                only => {
+                    map => '
+function (doc) {
+    if (doc.type == "new_analyze") {
         emit(doc.id);
     }
 }
@@ -148,6 +196,34 @@ function (doc) {
             }
         }
     };
+}
+
+sub req {
+    my ( $method, $path, $body ) = @_;
+    my $cv = AnyEvent->condvar;
+
+    http_request(
+        $method => $db->uri . $path,
+        headers => $db->_build_headers( {
+            $method eq 'POST' || $method eq 'PUT'
+            ? (
+                'Content-Type' => 'application/json'
+            )
+            : (),
+        } ),
+        body    => $body,
+        sub {
+            my ( $body, $headers ) = @_;
+            if ( $headers->{Status} >= 200 and $headers->{Status} < 400 ) {
+                $cv->send( $body );
+            }
+            else {
+                $cv->croak( $db->uri . $path . ': ' . $headers->{Status} . ' - ' . $headers->{Reason} . ' - ' . $headers->{URL} );
+            }
+        }
+    );
+
+    return $cv;
 }
 
 =head1 NAME
