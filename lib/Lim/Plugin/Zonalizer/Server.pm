@@ -315,9 +315,13 @@ sub ReadAnalysis {
                 setlocale( LC_MESSAGES, $lang . '.UTF-8' );
                 foreach my $result ( @{ $test{results} } ) {
                     my $entry = Zonemaster::Logger::Entry->new( $result );
+
+                    my $message = $translator->translate_tag( $entry );
+                    utf8::decode($message);
+
                     push( @results, {
                         %$result,
-                        message => $translator->translate_tag( $entry )
+                        message => $message
                     });
                 }
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
@@ -396,6 +400,7 @@ sub ReadAnalysis {
                     foreach my $result ( @{ $_->{results} } ) {
                         my $entry = Zonemaster::Logger::Entry->new( $result );
                         $result->{message} = $translator->translate_tag( $entry );
+                        utf8::decode($result->{message});
                     }
                 }
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
@@ -737,9 +742,13 @@ sub ReadAnalyze {
             setlocale( LC_MESSAGES, $lang . '.UTF-8' );
             foreach my $result ( @{ $test{results} } ) {
                 my $entry = Zonemaster::Logger::Entry->new( $result );
+
+                my $message = $translator->translate_tag( $entry );
+                utf8::decode($message);
+
                 push( @results, {
                     %$result,
-                    message => $translator->translate_tag( $entry )
+                    message => $message
                 });
             }
             setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
@@ -812,6 +821,7 @@ sub ReadAnalyze {
                 foreach my $result ( @{ $analyze->{results} } ) {
                     my $entry = Zonemaster::Logger::Entry->new( $result );
                     $result->{message} = $translator->translate_tag( $entry );
+                    utf8::decode($result->{message});
                 }
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
