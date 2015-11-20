@@ -120,6 +120,15 @@ sub check {
         }
     }
 
+    unless ( exists $doc->{ipv4} ) {
+        $doc->{ipv4} = 1;
+        $changed = 1;
+    }
+    unless ( exists $doc->{ipv6} ) {
+        $doc->{ipv6} = 1;
+        $changed = 1;
+    }
+
     return $changed;
 }
 

@@ -308,7 +308,7 @@ sub ValidateAnalyze {
     unless ( ref( $analyze ) eq 'HASH' ) {
         confess 'analyze is not HASH';
     }
-    foreach ( qw(id fqdn status progress created updated) ) {
+    foreach ( qw(id fqdn status progress created updated ipv4 ipv6) ) {
         unless ( defined $analyze->{$_} ) {
             confess 'analyze->' . $_ . ' is not defined';
         }
@@ -318,7 +318,7 @@ sub ValidateAnalyze {
             confess 'analyze->' . $_ . ' is not a numeric value';
         }
     }
-    unless ( grep { $analyze->{status} eq $_ } ( STATUS_QUEUED, STATUS_ANALYZING, STATUS_DONE, STATUS_FAILED, STATUS_STOPPED ) ) {
+    unless ( grep { $analyze->{status} eq $_ } ( STATUS_QUEUED, STATUS_ANALYZING, STATUS_DONE, STATUS_FAILED, STATUS_STOPPED, STATUS_UNKNOWN ) ) {
         confess 'analyze->status is invalid';
     }
     if ( exists $analyze->{error} ) {

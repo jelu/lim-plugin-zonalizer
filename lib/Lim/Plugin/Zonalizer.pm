@@ -8,6 +8,7 @@ our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
   ERR_INVALID_AFTER ERR_INVALID_BEFORE
   STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED STATUS_STOPPED
+  STATUS_UNKNOWN
   );
 our %EXPORT_TAGS = (
     err => [
@@ -17,7 +18,7 @@ our %EXPORT_TAGS = (
     ],
     status => [
         qw(STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
-           STATUS_STOPPED)
+           STATUS_STOPPED STATUS_UNKNOWN)
     ]
 );
 
@@ -107,6 +108,8 @@ See API documentation for full description about statuses.
 
 =item STATUS_STOPPED
 
+=item STATUS_UNKNOWN
+
 =back
 
 =cut
@@ -116,6 +119,7 @@ sub STATUS_ANALYZING() { return 'analyzing' }
 sub STATUS_DONE()      { return 'done' }
 sub STATUS_FAILED()    { return 'failed' }
 sub STATUS_STOPPED()   { return 'stopped' }
+sub STATUS_UNKNOWN()   { return 'unknown' }
 
 =head1 METHODS
 
@@ -237,7 +241,9 @@ sub Calls {
                         warning => 'integer',
                         error => 'integer',
                         critical => 'integer'
-                    }
+                    },
+                    ipv4 => 'integer',
+                    ipv6 => 'integer'
                 },
                 paging => {
                     ''      => 'single',
@@ -260,7 +266,9 @@ sub Calls {
         CreateAnalyze => {
             in  => {
                 version => 'integer',
-                fqdn => 'string'
+                fqdn => 'string',
+                ipv4 => 'integer optional',
+                ipv6 => 'integer optional'
             },
             out => { id   => 'string' }
         },
@@ -299,7 +307,9 @@ sub Calls {
                     warning => 'integer',
                     error => 'integer',
                     critical => 'integer'
-                }
+                },
+                ipv4 => 'integer',
+                ipv6 => 'integer'
             }
         },
         ReadAnalyzeStatus => {

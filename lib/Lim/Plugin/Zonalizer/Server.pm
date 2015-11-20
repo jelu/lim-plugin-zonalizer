@@ -89,13 +89,17 @@ sub Init {
     $self->{db_conf}           = {};
     $self->{lang}              = $ENV{LC_MESSAGES} || $ENV{LC_ALL} || $ENV{LANG} || $ENV{LANGUAGE} || 'en_US';
     $self->{lang}              =~ s/\..*$//o;
+    $self->{test_ipv4} = 1;
+    $self->{test_ipv6} = 1;
+    $self->{allow_ipv4} = 1;
+    $self->{allow_ipv6} = 1;
 
     #
     # Load configuration
     #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang) ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6) ) {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
             }
@@ -112,6 +116,19 @@ sub Init {
 
     if ( exists $self->{custom_base_url} ) {
         $self->{custom_base_url} =~ s/[\/\s]+$//o;
+    }
+
+    unless ( $self->{allow_ipv4} ) {
+        $self->{test_ipv4} = 0;
+    }
+    unless ( $self->{allow_ipv6} ) {
+        $self->{test_ipv6} = 0;
+    }
+    unless ( $self->{allow_ipv4} || $self->{allow_ipv6} ) {
+        confess 'Configuration error: Must have atleast one of allow_ipv4 or allow_ipv6 set';
+    }
+    unless ( $self->{test_ipv4} || $self->{test_ipv6} ) {
+        confess 'Configuration error: Must have atleast one of test_ipv4 or test_ipv6 set';
     }
 
     #
@@ -423,7 +440,9 @@ sub ReadAnalysis {
                             warning => $_->{summary}->{warning},
                             error => $_->{summary}->{error},
                             critical => $_->{summary}->{critical}
-                        }
+                        },
+                        ipv4 => $_->{ipv4},
+                        ipv6 => $_->{ipv6},
                     }
                 );
             }
@@ -498,6 +517,62 @@ sub CreateAnalyze {
         return;
     }
 
+    my ( $ipv4, $ipv6 ) = ( 0, 0 );
+
+    if ( exists $q->{ipv4} ) {
+        if ( $q->{ipv4} ) {
+            unless ( $self->{allow_ipv4} ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_BAD_REQUEST,
+                        message => 'ipv4_not_allowed'
+                    )
+                );
+                return;
+            }
+
+            $ipv4 = 1;
+        }
+    }
+    else {
+        $ipv4 = $self->{test_ipv4};
+    }
+
+    if ( exists $q->{ipv6} ) {
+        if ( $q->{ipv6} ) {
+            unless ( $self->{allow_ipv6} ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_BAD_REQUEST,
+                        message => 'ipv6_not_allowed'
+                    )
+                );
+                return;
+            }
+
+            $ipv6 = 1;
+        }
+    }
+    else {
+        $ipv6 = $self->{test_ipv6};
+    }
+
+    unless ( $ipv4 || $ipv6 ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'no_ip_protocol_selected'
+            )
+        );
+        return;
+    }
+
     my $uuid = OSSP::uuid->new;
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
@@ -507,7 +582,7 @@ sub CreateAnalyze {
     my $test = $TEST{$id} = {
         id       => $id,
         fqdn     => $q->{fqdn},
-        status   => 'analyzing',
+        status   => STATUS_ANALYZING,
         progress => 0,
         created  => time,
         updated  => time,
@@ -516,11 +591,30 @@ sub CreateAnalyze {
             warning => 0,
             error => 0,
             critical => 0
-        }
+        },
+        ipv4 => $ipv4,
+        ipv6 => $ipv6
     };
 
     my $cli;
-    unless ( open( $cli, '-|:encoding(UTF-8)', 'zonemaster-cli', qw(--json_stream --no-ipv6 --level DEBUG), $q->{fqdn} ) ) {
+    Lim::DEBUG and $self->{logger}->debug( 'open ', join( ' ',
+        '-|:encoding(UTF-8)',
+        'zonemaster-cli',
+        $ipv4 ? '--ipv4' : '--no-ipv4',
+        $ipv6 ? '--ipv6' : '--no-ipv6',
+        qw(--json_stream --level DEBUG),
+        $q->{fqdn}
+    ) );
+    unless (
+        open( $cli,
+            '-|:encoding(UTF-8)',
+            'zonemaster-cli',
+            $ipv4 ? '--ipv4' : '--no-ipv4',
+            $ipv6 ? '--ipv6' : '--no-ipv6',
+            qw(--json_stream --level DEBUG),
+            $q->{fqdn} ) )
+    {
+        Lim::ERR and $self->{logger}->error('open: ', $!);
         $STAT{analysis}->{failed}++;
         $self->Error( $cb, 'no' );
         return;
@@ -537,7 +631,7 @@ sub CreateAnalyze {
     my $failed = sub {
         $STAT{analysis}->{ongoing}--;
         $STAT{analysis}->{failed}++;
-        $test->{status} = 'failed';
+        $test->{status} = STATUS_FAILED;
     };
     my $store = sub {
         $self->StoreAnalyze( $id );
@@ -636,7 +730,7 @@ sub CreateAnalyze {
             if ( defined $failed ) {
                 $STAT{analysis}->{ongoing}--;
                 $STAT{analysis}->{completed}++;
-                $test->{status} = 'done';
+                $test->{status} = exists $test->{results} ? STATUS_DONE : STATUS_UNKNOWN;
                 undef $failed;
             }
             if ( defined $store ) {
@@ -843,7 +937,9 @@ sub ReadAnalyze {
                         warning => $analyze->{summary}->{warning},
                         error => $analyze->{summary}->{error},
                         critical => $analyze->{summary}->{critical}
-                    }
+                    },
+                    ipv4 => $analyze->{ipv4},
+                    ipv6 => $analyze->{ipv6},
                 }
             );
         }

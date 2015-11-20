@@ -123,6 +123,28 @@ An integer with the maximum number of objects to return for calls that return
 a list of objects, the given `limit` may not be larger then this and if it is
 then the limit will be `max_limit`.
 
+#### allow_ipv4
+
+An integer which determines whether (1) or not (0) IPv4 is allowed to be used
+for analyzing.
+
+#### allow_ipv6
+
+An integer which determines whether (1) or not (0) IPv6 is allowed to be used
+for analyzing.
+
+#### test_ipv4
+
+An integer which determines whether (1) or not (0) to use IPv4 for analyzing if
+not specified by the request.  Will be forced off (0) if IPv4 analyzing is not
+allowed (`allow_ipv4`).
+
+#### test_ipv6
+
+An integer which determines whether (1) or not (0) to use IPv6 for analyzing if
+not specified by the request.  Will be forced off (0) if IPv6 analyzing is not
+allowed (`allow_ipv6`).
+
 ### Configuration example with defaults
 
 ```
@@ -132,6 +154,10 @@ zonalizer:
   db_driver: Memory
   default_limit: 10
   max_limit: 10
+  allow_ipv4: 1
+  allow_ipv6: 1
+  test_ipv4: 1
+  test_ipv6: 1
 ```
 
 ## Calls
@@ -189,9 +215,9 @@ The following fields are sortable: `fqdn`, `created` and `updated`.
 }
 ```
 
-* `ongoing`: If true (1), show only ongoing analysis. Default false (0).
+* `ongoing`: If true (1), show only ongoing analysis.  Default false (0).
 * `results`: If true (1), include `results` in the `analyze` objects in the
-  response. Default false (0).
+  response.  Default false (0).
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
 
@@ -199,12 +225,16 @@ The following fields are sortable: `fqdn`, `created` and `updated`.
 
 Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
-### POST /zonalizer/1/analysis?fqdn=string
+### POST /zonalizer/1/analysis?fqdn=string[&<options...>]
 
-Initiate a new test for a given zone.  See `analyze` under Objects for
+Initiate a new analysis for a given zone.  See `analyze` under Objects for
 description of the analyze object.
 
-* `fqdn`: A string with the FQDN to analyze.
+* `fqdn`: A string with the FQDN to analyze.  (required)
+* `ipv4`: If true (1), run the analysis over IPv4.  If false (0), do not run
+  the analysis over IPv4.  (optional)
+* `ipv6`: If true (1), run the analysis over IPv6.  If false (0), do not run
+  the analysis over IPv6.  (optional)
 
 ### GET /zonalizer/1/analysis/:id[?results=bool&lang=string]
 
@@ -347,6 +377,7 @@ This documentation corresponds to version 1.0.7 of Zonemaster.
   an `error` why it failed.
 * `stopped`: indicates that the analyze was stopped, check `error` and `results`
   for an `error` why it was stopped.
+* `unknown`: indicates that the analyze may not have any results.
 
 ## Result Levels
 
@@ -429,6 +460,18 @@ The queue is full so the request has been dropped.
 #### invalid_lang
 
 An invalid `lang` parameter was supplied.
+
+#### ipv4_not_allowed
+
+The requested analysis over IPv4 is not allowed.
+
+#### ipv6_not_allowed
+
+The requested analysis over IPv6 is not allowed.
+
+#### no_ip_protocol_selected
+
+The requested analysis has both IPv4 and IPv6 disabled, one must be enabled.
 
 ### HTTP Errors
 
