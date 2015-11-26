@@ -197,10 +197,16 @@ Get status about API and analysis.
 * `analysis.completed`: Number of completed analysis.
 * `analysis.failed`: Number of failed analysis.
 
-### GET /zonalizer/1/analysis[?ongoing=bool&results=bool&lang=string]
+### GET /zonalizer/1/analysis[?ongoing=bool&results=bool&lang=string&search=string]
 
 Get a list of all analysis that ongoing or in the database for Zonalizer.
 See `analyze` under Objects for description of the analyze object.
+
+When showing ongoing analysis:
+- Following options are ignored: `before`, `after`, `sort`, `direction` and
+  `search`.
+- Pagination does not work.
+- Sorting of analysis is fixed on `updated` in a descending order.
 
 The following fields are sortable: `fqdn`, `created` and `updated`.
 
@@ -220,6 +226,8 @@ The following fields are sortable: `fqdn`, `created` and `updated`.
   response.  Default false (0).
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
+* `search`: A string with the "FQDN" to search/filter on.  See Search for more
+  information.
 
 ### DELETE /zonalizer/1/analysis
 
@@ -274,6 +282,24 @@ Only get status information about an analyze, this call is optimal for polling.
 ### DELETE /zonalizer/1/analysis/:id
 
 Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
+
+## Search
+
+The search string work in two different ways.
+
+### Search by FQDN
+
+If the string is a FQDN (`example.com`, `com.`) then the list of
+analysis returned will only be for that FQDN.
+
+### Search by domain
+
+If the string is a FQDN but includes a leading dot (`.example.com`, `.com.`)
+then the list of analysis returned will be for that FQDN and any other analysis
+that includes the domain.
+
+As an example; `.com` will return all FQDNs that ends with `.com` including
+`com.` itself.
 
 ## Objects
 
@@ -451,7 +477,7 @@ An invalid `before` parameter was supplied.
 
 #### invalid_fqdn
 
-An invalid `fqdn` parameter was supplied.
+An invalid `fqdn` or `search` parameter was supplied.
 
 #### queue_full
 

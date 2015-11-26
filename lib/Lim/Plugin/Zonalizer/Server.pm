@@ -280,6 +280,18 @@ sub ReadAnalysis {
     weaken( $self );
     $STAT{api}->{requests}++;
 
+    if ( exists $q->{search} and ( !defined $q->{search} || $q->{search} !~ /^(?:(?:[a-z-]+\.)*(?:[a-z-]+\.?|\.)|\.(?:[a-z-]+\.)*(?:[a-z-]+\.?))$/o ) ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'invalid_fqdn'
+            )
+        );
+        return;
+    }
+
     #
     # Verify limit and set base url if configured/requested.
     #
@@ -505,7 +517,7 @@ sub CreateAnalyze {
         );
         return;
     }
-    unless ( $q->{fqdn} =~ /^[a-zA-Z0-9\.-]+$/o ) {
+    unless ( $q->{fqdn} =~ /^(?:[a-z-]+\.)*(?:[a-z-]+\.?|\.)$/o ) {
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -573,15 +585,19 @@ sub CreateAnalyze {
         return;
     }
 
+    my $fqdn = $q->{fqdn};
+    $fqdn =~ s/\.$//o;
+    $fqdn .= '.';
+
     my $uuid = OSSP::uuid->new;
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
 
-    $self->{logger}->debug('Analyzing ', $q->{fqdn}, ' ', $id);
+    $self->{logger}->debug('Analyzing ', $fqdn, ' ', $id);
 
     my $test = $TEST{$id} = {
         id       => $id,
-        fqdn     => $q->{fqdn},
+        fqdn     => $fqdn,
         status   => STATUS_ANALYZING,
         progress => 0,
         created  => time,
@@ -603,7 +619,7 @@ sub CreateAnalyze {
         $ipv4 ? '--ipv4' : '--no-ipv4',
         $ipv6 ? '--ipv6' : '--no-ipv6',
         qw(--json_stream --level DEBUG),
-        $q->{fqdn}
+        $fqdn
     ) );
     unless (
         open( $cli,
@@ -612,7 +628,7 @@ sub CreateAnalyze {
             $ipv4 ? '--ipv4' : '--no-ipv4',
             $ipv6 ? '--ipv6' : '--no-ipv6',
             qw(--json_stream --level DEBUG),
-            $q->{fqdn} ) )
+            $fqdn ) )
     {
         Lim::ERR and $self->{logger}->error('open: ', $!);
         $STAT{analysis}->{failed}++;

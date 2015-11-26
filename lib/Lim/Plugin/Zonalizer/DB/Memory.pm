@@ -38,6 +38,7 @@ sub Init {
     $self->{analysis}      = [];
     $self->{analyze}       = {};
     $self->{analyze_fqdn}  = {};
+    $self->{analyze_rfqdn} = {};
 
     return;
 }
@@ -83,11 +84,13 @@ sub ReadAnalysis {
     my $search_fqdn;
     my $search_fqdn2;
     if ( defined $args{search} ) {
-        if ( $args{search} =~ /^\./o ) {
+        if ( $args{search} =~ /^\../o ) {
             $search_fqdn2 = $args{search};
+            $search_fqdn2 =~ s/^\.//o;
             unless ( $search_fqdn2 =~ /\.$/o ) {
                 $search_fqdn2 .= '.';
             }
+            $search_fqdn2 = join( '.', reverse( split( /\./o, $search_fqdn2 ) ) );
         }
         else {
             $search_fqdn = $args{search};
@@ -109,8 +112,17 @@ sub ReadAnalysis {
 
         $analysis = $self->{analyze_fqdn}->{$search_fqdn};
     }
-    elsif ( scalar @{ $self->{analysis} } and defined $args{sort} ) {
-        unless ( exists $self->{analysis}->[0]->{ $args{sort} } ) {
+    elsif ( defined $search_fqdn2 ) {
+        unless ( exists $self->{analyze_rfqdn}->{$search_fqdn2} ) {
+            $args{cb}->( undef );
+            return;
+        }
+
+        $analysis = $self->{analyze_rfqdn}->{$search_fqdn2};
+    }
+
+    if ( scalar @{ $analysis } and defined $args{sort} ) {
+        unless ( exists $analysis->[0]->{ $args{sort} } ) {
             $@ = ERR_INVALID_SORT_FIELD;
             $args{cb}->();
             return;
@@ -118,31 +130,26 @@ sub ReadAnalysis {
         if ( $args{direction} eq 'descending' ) {
             my @sort;
             if ( exists $FIELD{analysis}->{ $args{sort} } ) {
-                @sort = sort { $b->{ $args{sort} } <=> $a->{ $args{sort} } } @{ $self->{analysis} };
+                @sort = sort { $b->{ $args{sort} } <=> $a->{ $args{sort} } } @{ $analysis };
             }
             else {
-                @sort = sort { $b->{ $args{sort} } cmp $a->{ $args{sort} } } @{ $self->{analysis} };
+                @sort = sort { $b->{ $args{sort} } cmp $a->{ $args{sort} } } @{ $analysis };
             }
             $analysis = \@sort;
         }
         else {
             my @sort;
             if ( exists $FIELD{analysis}->{ $args{sort} } ) {
-                @sort = sort { $a->{ $args{sort} } <=> $b->{ $args{sort} } } @{ $self->{analysis} };
+                @sort = sort { $a->{ $args{sort} } <=> $b->{ $args{sort} } } @{ $analysis };
             }
             else {
-                @sort = sort { $a->{ $args{sort} } cmp $b->{ $args{sort} } } @{ $self->{analysis} };
+                @sort = sort { $a->{ $args{sort} } cmp $b->{ $args{sort} } } @{ $analysis };
             }
             $analysis = \@sort;
         }
     }
 
     foreach my $analyze ( @$analysis ) {
-        if ( defined $search_fqdn2 ) {
-            unless ( substr( $analyze->{fqdn}, length( $analyze->{fqdn} ) - length( $search_fqdn2 ) ) eq $search_fqdn2 ) {
-                next;
-            }
-        }
         if ( $paging ) {
             $next = 1;
             last;
@@ -188,7 +195,7 @@ sub ReadAnalysis {
             after    => $analysis[-1]->{id},
             previous => $previous,
             next     => $next,
-            defined $search_fqdn || defined $search_fqdn2 ? ( extra => 'search=' . uri_escape( defined $search_fqdn ? $search_fqdn : $search_fqdn2 ) ) : ()
+            defined $search_fqdn || defined $search_fqdn2 ? ( extra => 'search=' . uri_escape( defined $search_fqdn ? $search_fqdn : ( '.' . $search_fqdn2 ) ) ) : ()
           }
         : undef,
         @analysis
@@ -251,6 +258,7 @@ sub CreateAnalyze {
     push( @{ $self->{analysis} }, $analyze );
     $self->{analyze}->{ $args{analyze}->{id} } = $analyze;
     push( @{ $self->{analyze_fqdn}->{ $args{analyze}->{fqdn} } }, $analyze );
+    push( @{ $self->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $args{analyze}->{fqdn} ) ) ) } }, $analyze );
 
     $args{cb}->( clone $analyze );
     return;
@@ -345,6 +353,7 @@ sub DeleteAnalyze {
 
     @{ $self->{analyzes} } = grep { $_->{id} ne $args{id} } @{ $self->{analyzes} };
     @{ $self->{analyze_fqdn}->{ $self->{analyze}->{ $args{id} }->{fqdn} } } = grep { $_->{id} ne $args{id} } @{ $self->{analyze_fqdn}->{ $self->{analyze}->{ $args{id} }->{fqdn} } };
+    @{ $self->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $self->{analyze}->{ $args{id} }->{fqdn} ) ) ) } } = grep { $_->{id} ne $args{id} } @{ $self->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $self->{analyze}->{ $args{id} }->{fqdn} ) ) ) } };
 
     $args{cb}->();
     return;

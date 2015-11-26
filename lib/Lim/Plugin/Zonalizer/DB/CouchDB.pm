@@ -99,10 +99,11 @@ sub ReadAnalysis {
     my $search_fqdn;
     my $search_fqdn2;
     if ( defined $args{search} ) {
-        if ( $args{search} =~ /^\./o ) {
+        if ( $args{search} =~ /^\../o ) {
             $search_fqdn2 = $args{search};
             $search_fqdn2 =~ s/^\.//o;
             $search_fqdn2 =~ s/\.$//o;
+            $search_fqdn2 = join( '.', reverse( split( /\./o, $search_fqdn2 ) ) );
         }
         else {
             $search_fqdn = $args{search};
@@ -112,7 +113,7 @@ sub ReadAnalysis {
         }
     }
 
-    my $view   = 'all';
+    my $view   = '';
     my %option = (
         include_docs => 1,
         limit        => $limit
@@ -120,29 +121,30 @@ sub ReadAnalysis {
     my $ignore_paging = 0;
     my $reverse       = 0;
 
-    if ( defined $search_fqdn ) {
-        $option{key} = [ $search_fqdn, undef ];
-        $view = 'by_fqdn';
-        $ignore_paging = 1;
-    }
-    elsif ( defined $search_fqdn2 ) {
+    if ( defined $search_fqdn or defined $search_fqdn2 ) {
         if ( defined $args{after} ) {
-            $option{startkey} = [ split( /$ID_DELIMITER/o, $args{after} ), {} ];
-            $option{endkey} = [ '', reverse( split( /\./o, $search_fqdn2 ) ), {} ];
+            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
+            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, {} ] ];
         }
         elsif ( defined $args{before} ) {
             $reverse = 1;
-            $option{startkey} = [ split( /$ID_DELIMITER/o, $args{before} ) ];
-            $option{endkey} = [ '', reverse( split( /\./o, $search_fqdn2 ) ) ];
+            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
+            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2 ] ];
         }
         else {
-            $option{startkey} = [ '', reverse( split( /\./o, $search_fqdn2 ) ) ];
-            $option{endkey} = [ '', reverse( split( /\./o, $search_fqdn2 ) ), {} ];
+            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2 ] ];
+            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, {} ] ];
         }
-
-        $view = 'by_rfqdn';
     }
-    elsif ( defined $args{sort} ) {
+
+    if ( defined $search_fqdn ) {
+        $view = 'fqdn';
+    }
+    elsif ( defined $search_fqdn2 ) {
+        $view = 'rfqdn';
+    }
+
+    if ( defined $args{sort} ) {
         if ( $args{direction} eq 'descending' ) {
             $option{descending} = 1;
         }
@@ -153,9 +155,11 @@ sub ReadAnalysis {
             return;
         }
 
+        my $startkey;
+
         if ( defined $args{after} ) {
-            $option{startkey} = [ split( /$ID_DELIMITER/o, $args{after} ), !$option{descending} ? ( {} ) : () ];
-            unless ( scalar @{ $option{startkey} } == 2 + ( !$option{descending} ? 1 : 0 ) ) {
+            $startkey = [ split( /$ID_DELIMITER/o, $args{after} ), !$option{descending} ? ( {} ) : () ];
+            unless ( scalar @{ $startkey } == 2 + ( !$option{descending} ? 1 : 0 ) ) {
                 $@ = ERR_INVALID_AFTER;
                 $args{cb}->();
                 return;
@@ -163,13 +167,13 @@ sub ReadAnalysis {
 
             # uncoverable branch false
             if ( $VALID_ORDER_FIELD{analysis}->{ $args{sort} } == 1 ) {
-                $option{startkey}->[0] = $option{startkey}->[0] + 0;
+                $startkey->[0] = $startkey->[0] + 0;
             }
         }
         elsif ( defined $args{before} ) {
             $reverse = 1;
-            $option{startkey} = [ split( /$ID_DELIMITER/o, $args{before} ), $option{descending} ? ( {} ) : () ];
-            unless ( scalar @{ $option{startkey} } == 2 + ( $option{descending} ? 1 : 0 ) ) {
+            $startkey = [ split( /$ID_DELIMITER/o, $args{before} ), $option{descending} ? ( {} ) : () ];
+            unless ( scalar @{ $startkey } == 2 + ( $option{descending} ? 1 : 0 ) ) {
                 $@ = ERR_INVALID_BEFORE;
                 $args{cb}->();
                 return;
@@ -177,19 +181,33 @@ sub ReadAnalysis {
 
             # uncoverable branch false
             if ( $VALID_ORDER_FIELD{analysis}->{ $args{sort} } == 1 ) {
-                $option{startkey}->[0] = $option{startkey}->[0] + 0;
+                $startkey->[0] = $startkey->[0] + 0;
             }
         }
 
-        $view = 'by_' . $args{sort};
+        if ( $startkey ) {
+            push( @{$option{startkey}}, @$startkey );
+        }
+
+        $view = ( $view ? $view . '_' : '' ) . 'by_' . $args{sort};
     }
     else {
+        my $startkey;
+
         if ( defined $args{after} ) {
-            $option{startkey} = [ $args{after}, {} ];
+            $startkey = [ $args{after}, {} ];
         }
         elsif ( defined $args{before} ) {
             $reverse = 1;
-            $option{startkey} = [ $args{before} ];
+            $startkey = [ $args{before} ];
+        }
+
+        if ( $startkey ) {
+            push( @{$option{startkey}}, @$startkey );
+        }
+
+        unless ( $view ) {
+            $view = 'all';
         }
     }
 
@@ -236,7 +254,7 @@ sub ReadAnalysis {
                         after    => $after,
                         previous => $previous,
                         next     => $next,
-                        defined $search_fqdn || defined $search_fqdn2 ? ( extra => 'search=' . uri_escape( defined $search_fqdn ? $search_fqdn : $search_fqdn2 ) ) : ()
+                        defined $search_fqdn || defined $search_fqdn2 ? ( extra => 'search=' . uri_escape( defined $search_fqdn ? $search_fqdn : ( '.' . $search_fqdn2 ) ) ) : ()
                       }
                     : undef,
                     @$rows
@@ -260,7 +278,7 @@ sub ReadAnalysis {
                 $after  = $b;
             }
 
-            unless ( defined $search_fqdn2 ) {
+            unless ( defined $search_fqdn or defined $search_fqdn2 ) {
                 $code->();
                 return;
             }
@@ -271,7 +289,6 @@ sub ReadAnalysis {
             delete $option{startkey};
             delete $option{endkey};
             delete $option{include_docs};
-            my $rfqdn = join( '.', '', reverse( split( /\./o, $search_fqdn2 ) ) ) . '.';
 
             my $code_next = sub {
                 unless ( $next ) {
@@ -300,7 +317,13 @@ sub ReadAnalysis {
                         }
 
                         my ( $keys );
-                        eval { $keys = $self->HandleResponseKey( $_[0] ); };
+                        eval {
+                            $keys = $self->HandleResponseKey( $_[0] );
+
+                            unless ( ref($keys->[0]) eq 'ARRAY' and ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                                die 'invalid schema';
+                            }
+                        };
                         if ( $@ ) {
 
                             # uncoverable branch false
@@ -310,7 +333,10 @@ sub ReadAnalysis {
                             return;
                         }
 
-                        unless ( scalar @$keys and substr( join( '.', @{ $keys->[0] } ) . '.', 0, length( $rfqdn ) ) eq $rfqdn ) {
+                        if ( defined $search_fqdn and $keys->[0]->[0]->[0] ne $search_fqdn ) {
+                            $next = 0;
+                        }
+                        elsif ( defined $search_fqdn2 and $keys->[0]->[0]->[0] ne $search_fqdn2 ) {
                             $next = 0;
                         }
 
@@ -345,7 +371,13 @@ sub ReadAnalysis {
                     }
 
                     my ( $keys );
-                    eval { $keys = $self->HandleResponseKey( $_[0] ); };
+                    eval {
+                        $keys = $self->HandleResponseKey( $_[0] );
+
+                        unless ( ref($keys->[0]) eq 'ARRAY' and ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                            die 'invalid schema';
+                        }
+                    };
                     if ( $@ ) {
 
                         # uncoverable branch false
@@ -355,7 +387,10 @@ sub ReadAnalysis {
                         return;
                     }
 
-                    unless ( scalar @$keys and substr( join( '.', @{ $keys->[0] } ) . '.', 0, length( $rfqdn ) ) eq $rfqdn ) {
+                    if ( defined $search_fqdn and $keys->[0]->[0]->[0] ne $search_fqdn ) {
+                        $previous = 0;
+                    }
+                    elsif ( defined $search_fqdn2 and $keys->[0]->[0]->[0] ne $search_fqdn2 ) {
                         $previous = 0;
                     }
 
@@ -1041,14 +1076,14 @@ sub HandleResponse {
     if ( $keyskip ) {
         my ( $skip, @key );
 
-        @key = grep { defined $_ } @{ $data->{rows}->[0]->{key} };
+        @key = grep { defined $_ && !ref($_) } @{ $data->{rows}->[0]->{key} };
         $skip = $keyskip;
         while ( $skip-- ) {
             shift( @key );
         }
         $before = join( $ID_DELIMITER, @key );
 
-        @key = grep { defined $_ } @{ $data->{rows}->[-1]->{key} };
+        @key = grep { defined $_ && !ref($_) } @{ $data->{rows}->[-1]->{key} };
         $skip = $keyskip;
         while ( $skip-- ) {
             shift( @key );
@@ -1056,8 +1091,8 @@ sub HandleResponse {
         $after = join( $ID_DELIMITER, @key );
     }
     else {
-        $before = join( $ID_DELIMITER, grep { defined $_ } @{ $data->{rows}->[0]->{key} } );
-        $after  = join( $ID_DELIMITER, grep { defined $_ } @{ $data->{rows}->[-1]->{key} } );
+        $before = join( $ID_DELIMITER, grep { defined $_ && !ref($_) } @{ $data->{rows}->[0]->{key} } );
+        $after  = join( $ID_DELIMITER, grep { defined $_ && !ref($_) } @{ $data->{rows}->[-1]->{key} } );
     }
 
     return ( $before, $after, $previous, $next, \@rows, $data->{total_rows}, $data->{offset} );

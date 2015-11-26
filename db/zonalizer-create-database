@@ -129,6 +129,11 @@ sub check {
         $changed = 1;
     }
 
+    unless ( $doc->{fqdn} =~ /\.$/o ) {
+        $doc->{fqdn} .= '.';
+        $changed = 1;
+    }
+
     return $changed;
 }
 
@@ -178,30 +183,61 @@ function (doc) {
 '
                       }
                 } ( qw(fqdn created updated) ) ),
-#                fqdn => {
-#                    map => '
-#        function (doc) {
-#            if (doc.type == "analyze") {
-#                var key = doc.fqdn.split(/\./).reverse();
-#                key.push(null);
-#                emit([key, doc.id, null]);
-#            }
-#        }
-#        '
-#                },
-#                map( {
-#                    'fqdn_by_' . $_ => {
-#                        map => '
-#        function (doc) {
-#            if (doc.type == "analyze") {
-#                var key = doc.fqdn.split(/\./).reverse();
-#                key.push(null);
-#                emit([key, doc.' . $_ . ', doc.id, null]);
-#            }
-#        }
-#        '
-#                      }
-#                } ( qw(created updated) ) )
+                fqdn => {
+                    map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        emit([[doc.fqdn, null], doc.id, null]);
+    }
+}
+'
+                },
+                map( {
+                    'fqdn_by_' . $_ => {
+                        map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        emit([[doc.fqdn, null], doc.' . $_ . ', doc.id, null]);
+    }
+}
+'
+                      }
+                } ( qw(created updated) ) ),
+                rfqdn => {
+                    map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        var key = doc.fqdn.split(/\./).reverse(), i, s = "";
+        for (i=0; i<key.length; i++) {
+            if ( s ) {
+                s = s + ".";
+            }
+            s = s + key[i];
+            emit([[s, null], doc.id, null]);
+        }
+    }
+}
+'
+                },
+                map( {
+                    'rfqdn_by_' . $_ => {
+                        map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        var key = doc.fqdn.split(/\./).reverse(), i, s = "";
+        key.shift();
+        for (i=0; i<key.length; i++) {
+            if ( s ) {
+                s = s + ".";
+            }
+            s = s + key[i];
+            emit([[s, null], doc.' . $_ . ', doc.id, null]);
+        }
+    }
+}
+'
+                      }
+                } ( qw(fqdn created updated) ) )
             }
         }
     };

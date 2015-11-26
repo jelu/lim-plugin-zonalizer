@@ -203,6 +203,7 @@ sub Calls {
         ReadAnalysis => {
             in => {
                 version   => 'integer',
+                search    => 'string optional',
                 ongoing   => 'integer optional',
                 results   => 'integer optional',
                 lang      => 'string optional',
