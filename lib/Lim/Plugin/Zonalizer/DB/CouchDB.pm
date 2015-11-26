@@ -121,19 +121,25 @@ sub ReadAnalysis {
     my $ignore_paging = 0;
     my $reverse       = 0;
 
+    if ( defined $args{sort} ) {
+        if ( $args{direction} eq 'descending' ) {
+            $option{descending} = 1;
+        }
+    }
+
     if ( defined $search_fqdn or defined $search_fqdn2 ) {
         if ( defined $args{after} ) {
             $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
-            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, {} ] ];
+            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? () : ( {} ) ] ];
         }
         elsif ( defined $args{before} ) {
             $reverse = 1;
             $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
-            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2 ] ];
+            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? ( {} ) : () ] ];
         }
         else {
-            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2 ] ];
-            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, {} ] ];
+            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? ( {} ) : () ] ];
+            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? () : ( {} ) ] ];
         }
     }
 
@@ -145,10 +151,6 @@ sub ReadAnalysis {
     }
 
     if ( defined $args{sort} ) {
-        if ( $args{direction} eq 'descending' ) {
-            $option{descending} = 1;
-        }
-
         unless ( exists $VALID_ORDER_FIELD{analysis}->{ $args{sort} } ) {
             $@ = ERR_INVALID_SORT_FIELD;
             $args{cb}->();
