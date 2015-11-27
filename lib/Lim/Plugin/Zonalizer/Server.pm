@@ -280,7 +280,7 @@ sub ReadAnalysis {
     weaken( $self );
     $STAT{api}->{requests}++;
 
-    if ( exists $q->{search} and ( !defined $q->{search} || $q->{search} !~ /^(?:(?:[a-z-]+\.)*(?:[a-z-]+\.?|\.)|\.(?:[a-z-]+\.)*(?:[a-z-]+\.?))$/o ) ) {
+    if ( exists $q->{search} and ( !defined $q->{search} || $q->{search} !~ /^(?:(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?|\.)|\.(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?))$/o ) ) {
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -517,7 +517,7 @@ sub CreateAnalyze {
         );
         return;
     }
-    unless ( $q->{fqdn} =~ /^(?:[a-z-]+\.)*(?:[a-z-]+\.?|\.)$/o ) {
+    unless ( $q->{fqdn} =~ /^(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?|\.)$/o ) {
         $self->Error(
             $cb,
             Lim::Error->new(

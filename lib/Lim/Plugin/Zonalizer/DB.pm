@@ -313,7 +313,7 @@ sub ValidateAnalyze {
             confess 'analyze->' . $_ . ' is not defined';
         }
     }
-    unless ( $analyze->{fqdn} =~ /^(?:[a-z-]+\.)*[a-z-]+\.$/o ) {
+    unless ( $analyze->{fqdn} =~ /^(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.$/o ) {
         confess 'analyze->fqdn invalid';
     }
     foreach ( qw(progress created updated) ) {
