@@ -129,17 +129,17 @@ sub ReadAnalysis {
 
     if ( defined $search_fqdn or defined $search_fqdn2 ) {
         if ( defined $args{after} ) {
-            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
-            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? () : ( {} ) ] ];
+            $option{startkey} = [ $args{space} ? $args{space} : '', [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
+            $option{endkey} = [ $args{space} ? $args{space} : '', [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? () : ( {} ) ] ];
         }
         elsif ( defined $args{before} ) {
             $reverse = 1;
-            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
-            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? ( {} ) : () ] ];
+            $option{startkey} = [ $args{space} ? $args{space} : '', [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, undef ] ];
+            $option{endkey} = [ $args{space} ? $args{space} : '', [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? ( {} ) : () ] ];
         }
         else {
-            $option{startkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? ( {} ) : () ] ];
-            $option{endkey} = [ [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? () : ( {} ) ] ];
+            $option{startkey} = [ $args{space} ? $args{space} : '', [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? ( {} ) : () ] ];
+            $option{endkey} = [ $args{space} ? $args{space} : '', [ defined $search_fqdn ? $search_fqdn : $search_fqdn2, $option{descending} ? () : ( {} ) ] ];
         }
     }
 
@@ -188,6 +188,9 @@ sub ReadAnalysis {
         }
 
         if ( $startkey ) {
+            unless ( $option{startkey} ) {
+                $option{startkey} = [ $args{space} ? $args{space} : '' ];
+            }
             push( @{$option{startkey}}, @$startkey );
         }
 
@@ -197,11 +200,11 @@ sub ReadAnalysis {
         my $startkey;
 
         if ( defined $args{after} ) {
-            $startkey = [ $args{after}, {} ];
+            $startkey = [ $args{space} ? $args{space} : '', $args{after}, {} ];
         }
         elsif ( defined $args{before} ) {
             $reverse = 1;
-            $startkey = [ $args{before} ];
+            $startkey = [ $args{space} ? $args{space} : '', $args{before} ];
         }
 
         if ( $startkey ) {
@@ -222,8 +225,17 @@ sub ReadAnalysis {
         }
     }
 
+    if ( $args{space} ) {
+        unless ( $option{startkey} ) {
+            $option{startkey} = [ $args{space} ? $args{space} : '', $option{descending} ? ( {} ) : () ];
+        }
+        unless ( $option{endkey} ) {
+            $option{endkey} = [ $args{space} ? $args{space} : '', $option{descending} ? () : ( {} ) ];
+        }
+    }
+
     # uncoverable branch false
-    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/', $view );
+    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/', $view, $args{space} ? ' '.$args{space} : '' );
     $self->{db}->view( 'analysis/' . $view, \%option )->cb(
         sub {
             # uncoverable branch true
@@ -234,7 +246,7 @@ sub ReadAnalysis {
             }
 
             my ( $before, $after, $previous, $next, $rows, $total_rows, $offset );
-            eval { ( $before, $after, $previous, $next, $rows, $total_rows, $offset ) = $self->HandleResponse( $_[0], $reverse ); };
+            eval { ( $before, $after, $previous, $next, $rows, $total_rows, $offset ) = $self->HandleResponse( $_[0], $reverse, 1 ); };
             if ( $@ ) {
 
                 # uncoverable branch false
@@ -248,6 +260,17 @@ sub ReadAnalysis {
                 $previous = 0;
             }
 
+            my $extra = '';
+            if ( defined $search_fqdn ) {
+                $extra .= ( $extra ? '&' : '' ) . 'search=' . uri_escape( $search_fqdn );
+            }
+            if ( defined $search_fqdn2 ) {
+                $extra .= ( $extra ? '&' : '' ) . 'search=' . uri_escape( '.' . $search_fqdn2 );
+            }
+            if ( $args{space} ) {
+                $extra .= ( $extra ? '&' : '' ) . 'space=' . uri_escape( $args{space} );
+            }
+
             my $code = sub {
                 $args{cb}->(
                     ( $previous || $next ) && !$ignore_paging
@@ -256,7 +279,7 @@ sub ReadAnalysis {
                         after    => $after,
                         previous => $previous,
                         next     => $next,
-                        defined $search_fqdn || defined $search_fqdn2 ? ( extra => 'search=' . uri_escape( defined $search_fqdn ? $search_fqdn : ( '.' . $search_fqdn2 ) ) ) : ()
+                        $extra ? ( extra => $extra ) : ()
                       }
                     : undef,
                     @$rows
@@ -278,11 +301,6 @@ sub ReadAnalysis {
                 my $b = $before;
                 $before = $a;
                 $after  = $b;
-            }
-
-            unless ( defined $search_fqdn or defined $search_fqdn2 ) {
-                $code->();
-                return;
             }
 
             # TODO: Can this be solved in a better way then fetching previous/next with skip?
@@ -322,8 +340,13 @@ sub ReadAnalysis {
                         eval {
                             $keys = $self->HandleResponseKey( $_[0] );
 
-                            unless ( ref($keys->[0]) eq 'ARRAY' and ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                            unless ( ref($keys->[0]) eq 'ARRAY' ) {
                                 die 'invalid schema';
+                            }
+                            if ( defined $search_fqdn or defined $search_fqdn2 ) {
+                                unless ( ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                                    die 'invalid schema';
+                                }
                             }
                         };
                         if ( $@ ) {
@@ -339,6 +362,14 @@ sub ReadAnalysis {
                             $next = 0;
                         }
                         elsif ( defined $search_fqdn2 and $keys->[0]->[0]->[0] ne $search_fqdn2 ) {
+                            $next = 0;
+                        }
+                        elsif ( $args{space} ) {
+                            unless ( $keys->[0]->[0] eq $args{space} ) {
+                                $next = 0;
+                            }
+                        }
+                        elsif ( $keys->[0]->[0] ne '' ) {
                             $next = 0;
                         }
 
@@ -376,8 +407,13 @@ sub ReadAnalysis {
                     eval {
                         $keys = $self->HandleResponseKey( $_[0] );
 
-                        unless ( ref($keys->[0]) eq 'ARRAY' and ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                        unless ( ref($keys->[0]) eq 'ARRAY' ) {
                             die 'invalid schema';
+                        }
+                        if ( defined $search_fqdn or defined $search_fqdn2 ) {
+                            unless ( ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                                die 'invalid schema';
+                            }
                         }
                     };
                     if ( $@ ) {
@@ -395,6 +431,14 @@ sub ReadAnalysis {
                     elsif ( defined $search_fqdn2 and $keys->[0]->[0]->[0] ne $search_fqdn2 ) {
                         $previous = 0;
                     }
+                    elsif ( $args{space} ) {
+                        unless ( $keys->[0]->[0] eq $args{space} ) {
+                            $previous = 0;
+                        }
+                    }
+                    elsif ( $keys->[0]->[0] ne '' ) {
+                        $previous = 0;
+                    }
 
                     $code_next->();
                 }
@@ -408,7 +452,7 @@ sub ReadAnalysis {
 
 =over 4
 
-=item cb => sub { my ($deleted_analysis, $deleted_checks, $deleted_results) = @_; ... }
+=item cb => sub { my ($deleted_analysis) = @_; ... }
 
 $@ on error
 
@@ -426,13 +470,20 @@ sub DeleteAnalysis {
     }
     undef $@;
 
-    my ( $deleted_analysis, $deleted_checks, $deleted_results ) = ( 0, 0, 0 );
+    my ( $deleted_analysis ) = ( 0 );
     my $analysis;
     $analysis = sub {
 
         # uncoverable branch false
         Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all' );
-        $self->{db}->view( 'analysis/all', { limit => $self->{delete_batch}, include_docs => 1 } )->cb(
+        $self->{db}->view( 'analysis/all', {
+            $args{space} ? (
+                startkey => [ $args{space}, undef ],
+                endkey => [ $args{space}, {} ]
+            ) : (),
+            limit => $self->{delete_batch},
+            include_docs => 1
+        } )->cb(
             sub {
                 # uncoverable branch true
                 unless ( defined $self ) {
@@ -448,12 +499,12 @@ sub DeleteAnalysis {
                     # uncoverable branch false
                     Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
                     $@ = ERR_INTERNAL_DATABASE;
-                    $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
+                    $args{cb}->( $deleted_analysis );
                     return;
                 }
 
                 unless ( scalar @$rows ) {
-                    $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
+                    $args{cb}->( $deleted_analysis );
                     return;
                 }
 
@@ -480,7 +531,7 @@ sub DeleteAnalysis {
                             # uncoverable branch false
                             Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
                             $@ = ERR_INTERNAL_DATABASE;
-                            $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
+                            $args{cb}->( $deleted_analysis );
                             return;
                         }
 
@@ -491,135 +542,7 @@ sub DeleteAnalysis {
             }
         );
     };
-    my $checks;
-    $checks = sub {
-
-        # uncoverable branch false
-        Lim::DEBUG and $self->{logger}->debug( 'couchdb checks/all' );
-        $self->{db}->view( 'checks/all', { limit => $self->{delete_batch}, include_docs => 1 } )->cb(
-            sub {
-                # uncoverable branch true
-                unless ( defined $self ) {
-
-                    # uncoverable statement
-                    return;
-                }
-
-                my $rows;
-                eval { $rows = $self->HandleResponseIdRev( $_[0] ); };
-                if ( $@ ) {
-
-                    # uncoverable branch false
-                    Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                    $@ = ERR_INTERNAL_DATABASE;
-                    $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
-                    return;
-                }
-
-                unless ( scalar @$rows ) {
-                    $analysis->();
-                    return;
-                }
-
-                foreach ( @$rows ) {
-                    $_->{_deleted} = JSON::true;
-                }
-
-                # uncoverable branch false
-                Lim::DEBUG and $self->{logger}->debug( 'couchdb bulk_docs checks' );
-                $self->{db}->bulk_docs( $rows )->cb(
-                    sub {
-                        my ( $cv ) = @_;
-
-                        # uncoverable branch true
-                        unless ( defined $self ) {
-
-                            # uncoverable statement
-                            return;
-                        }
-
-                        eval { $cv->recv; };
-                        if ( $@ ) {
-
-                            # uncoverable branch false
-                            Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                            $@ = ERR_INTERNAL_DATABASE;
-                            $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
-                            return;
-                        }
-
-                        $deleted_checks += scalar @$rows;
-                        $checks->();
-                    }
-                );
-            }
-        );
-    };
-    my $results;
-    $results = sub {
-
-        # uncoverable branch false
-        Lim::DEBUG and $self->{logger}->debug( 'couchdb results/all' );
-        $self->{db}->view( 'results/all', { limit => $self->{delete_batch}, include_docs => 1 } )->cb(
-            sub {
-                # uncoverable branch true
-                unless ( defined $self ) {
-
-                    # uncoverable statement
-                    return;
-                }
-
-                my $rows;
-                eval { $rows = $self->HandleResponseIdRev( $_[0] ); };
-                if ( $@ ) {
-
-                    # uncoverable branch false
-                    Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                    $@ = ERR_INTERNAL_DATABASE;
-                    $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
-                    return;
-                }
-
-                unless ( scalar @$rows ) {
-                    $checks->();
-                    return;
-                }
-
-                foreach ( @$rows ) {
-                    $_->{_deleted} = JSON::true;
-                }
-
-                # uncoverable branch false
-                Lim::DEBUG and $self->{logger}->debug( 'couchdb bulk_docs results' );
-                $self->{db}->bulk_docs( $rows )->cb(
-                    sub {
-                        my ( $cv ) = @_;
-
-                        # uncoverable branch true
-                        unless ( defined $self ) {
-
-                            # uncoverable statement
-                            return;
-                        }
-
-                        eval { $cv->recv; };
-                        if ( $@ ) {
-
-                            # uncoverable branch false
-                            Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                            $@ = ERR_INTERNAL_DATABASE;
-                            $args{cb}->( $deleted_analysis, $deleted_checks, $deleted_results );
-                            return;
-                        }
-
-                        $deleted_results += scalar @$rows;
-                        $results->();
-                    }
-                );
-            }
-        );
-    };
-    $results->();
+    $analysis->();
     return;
 }
 
@@ -647,7 +570,11 @@ sub CreateAnalyze {
         return;
     }
 
-    my %analyze = ( %{ clone $args{analyze} }, type => 'new_analyze' );
+    my %analyze = (
+        %{ clone $args{analyze} },
+        type => 'new_analyze',
+        space => $args{space} ? $args{space} : ''
+    );
 
     # uncoverable branch false
     Lim::DEBUG and $self->{logger}->debug( 'couchdb save_doc new_analyze' );
@@ -673,8 +600,13 @@ sub CreateAnalyze {
             }
 
             # uncoverable branch false
-            Lim::DEBUG and $self->{logger}->debug( 'couchdb new_analysis/all ', $analyze{id} );
-            $self->{db}->view( 'new_analysis/all', { key => $analyze{id} } )->cb(
+            Lim::DEBUG and $self->{logger}->debug( 'couchdb new_analysis/all ', $analyze{id}, $args{space} ? ' '.$args{space} : '' );
+            $self->{db}->view( 'new_analysis/all', {
+                key => [
+                    $args{space} ? $args{space} : '',
+                    $analyze{id}
+                ]
+            } )->cb(
                 sub {
                     # uncoverable branch true
                     unless ( defined $self ) {
@@ -806,8 +738,15 @@ sub ReadAnalyze {
     undef $@;
 
     # uncoverable branch false
-    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id} );
-    $self->{db}->view( 'analysis/all', { key => [ $args{id}, undef ], include_docs => 1 } )->cb(
+    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id}, $args{space} ? ' '.$args{space} : '' );
+    $self->{db}->view( 'analysis/all', {
+        key => [
+            $args{space} ? $args{space} : '',
+            $args{id},
+            undef
+        ],
+        include_docs => 1
+    } )->cb(
         sub {
             # uncoverable branch true
             unless ( defined $self ) {
@@ -817,7 +756,7 @@ sub ReadAnalyze {
             }
 
             my $rows;
-            eval { $rows = $self->HandleResponse( $_[0] ); };
+            eval { $rows = $self->HandleResponse( $_[0], 0, 1 ); };
             if ( $@ ) {
 
                 # uncoverable branch false
@@ -877,6 +816,24 @@ sub UpdateAnalyze {
         $args{cb}->();
         return;
     }
+    unless ( defined $args{analyze}->{space} ) {
+
+        # uncoverable branch false
+        Lim::ERR and $self->{logger}->error( 'CouchDB specific space is missing' );
+        $@ = ERR_SPACE_MISSMATCH;
+        $args{cb}->();
+        return;
+    }
+    if ( defined $args{space} and $args{space} ne $args{analyze}->{space} ) {
+        $@ = ERR_SPACE_MISSMATCH;
+        $args{cb}->();
+        return;
+    }
+    if ( !defined $args{space} and $args{analyze}->{space} ne '' ) {
+        $@ = ERR_SPACE_MISSMATCH;
+        $args{cb}->();
+        return;
+    }
 
     # uncoverable branch false
     Lim::DEBUG and $self->{logger}->debug( 'couchdb save_doc analyze' );
@@ -926,8 +883,15 @@ sub DeleteAnalyze {
     undef $@;
 
     # uncoverable branch false
-    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id} );
-    $self->{db}->view( 'analysis/all', { key => [ $args{id}, undef ], include_docs => 1 } )->cb(
+    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id}, $args{space} ? ' '.$args{space} : '' );
+    $self->{db}->view( 'analysis/all', {
+        key => [
+            $args{space} ? $args{space} : '',
+            $args{id},
+            undef
+        ],
+        include_docs => 1
+    } )->cb(
         sub {
             # uncoverable branch true
             unless ( defined $self ) {
@@ -943,12 +907,12 @@ sub DeleteAnalyze {
                 # uncoverable branch false
                 Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
                 $@ = ERR_INTERNAL_DATABASE;
-                $args{cb}->( 0, 0 );
+                $args{cb}->();
                 return;
             }
             unless ( scalar @$rows ) {
                 $@ = ERR_ID_NOT_FOUND;
-                $args{cb}->( 0, 0 );
+                $args{cb}->();
                 return;
             }
             if ( scalar @$rows > 1 ) {
@@ -956,49 +920,37 @@ sub DeleteAnalyze {
                 # uncoverable branch false
                 Lim::ERR and $self->{logger}->error( 'CouchDB error: too many rows returned' );
                 $@ = ERR_INTERNAL_DATABASE;
-                $args{cb}->( 0, 0 );
+                $args{cb}->();
                 return;
             }
 
-            $self->DeleteAnalyzeChecks(
-                id => $args{id},
-                cb => sub {
-                    my ( $deleted_checks, $deleted_results ) = @_;
+            $rows->[0]->{_deleted} = JSON::true;
 
-                    if ( $@ ) {
-                        $args{cb}->( 0, 0 );
+            # uncoverable branch false
+            Lim::DEBUG and $self->{logger}->debug( 'couchdb save_doc ', $args{id} );
+            $self->{db}->save_doc( $rows->[0] )->cb(
+                sub {
+                    my ( $cv ) = @_;
+
+                    # uncoverable branch true
+                    unless ( defined $self ) {
+
+                        # uncoverable statement
                         return;
                     }
 
-                    $rows->[0]->{_deleted} = JSON::true;
+                    eval { $cv->recv; };
+                    if ( blessed $@ and $@->can( 'headers' ) and ref( $@->headers ) eq 'HASH' and $@->headers->{Status} == 200 and $@->headers->{Reason} eq 'OK' ) {
+                        undef $@;
+                    }
+                    if ( $@ ) {
 
-                    # uncoverable branch false
-                    Lim::DEBUG and $self->{logger}->debug( 'couchdb save_doc ', $args{id} );
-                    $self->{db}->save_doc( $rows->[0] )->cb(
-                        sub {
-                            my ( $cv ) = @_;
+                        # uncoverable branch false
+                        Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
+                        $@ = ERR_INTERNAL_DATABASE;
+                    }
 
-                            # uncoverable branch true
-                            unless ( defined $self ) {
-
-                                # uncoverable statement
-                                return;
-                            }
-
-                            eval { $cv->recv; };
-                            if ( blessed $@ and $@->can( 'headers' ) and ref( $@->headers ) eq 'HASH' and $@->headers->{Status} == 200 and $@->headers->{Reason} eq 'OK' ) {
-                                undef $@;
-                            }
-                            if ( $@ ) {
-
-                                # uncoverable branch false
-                                Lim::ERR and $self->{logger}->error( 'CouchDB error: ', $@ );
-                                $@ = ERR_INTERNAL_DATABASE;
-                            }
-
-                            $args{cb}->( $deleted_checks, $deleted_results );
-                        }
-                    );
+                    $args{cb}->();
                 }
             );
         }

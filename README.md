@@ -13,6 +13,8 @@ qualified domain name (FQDN).
 An analyze is kept in memory while its queued or analyzing then it's store into
 a database for future access and long term storage.
 
+All analysis are kept in spaces for seperation, see Spaces for more information.
+
 ## Data Types
 
 The following data types are used:
@@ -160,6 +162,26 @@ zonalizer:
   test_ipv6: 1
 ```
 
+## Spaces
+
+A space is used as a seperation of analysis and is given as an optional option
+to most calls, see Calls.
+
+If given, calls will only create or return analysis for that corresponding
+space.
+
+If not given, calls will use the default configurable space or the "null" space.
+
+The `id` of an analyze is unique within the corresponding space.
+
+The "null" space is a reference to an unset space which, depending on the
+database backend, can be `null`, `undef`, empty string or otherwise an unset
+variable.
+
+As an example; To separate a web app from a batch script, the web app may set
+the space to "web" while the batch script sets it to "batch".  In this way they
+will not pollute each other spaces.
+
 ## Calls
 
 ### GET /zonalizer/1/version
@@ -197,7 +219,7 @@ Get status about API and analysis.
 * `analysis.completed`: Number of completed analysis.
 * `analysis.failed`: Number of failed analysis.
 
-### GET /zonalizer/1/analysis[?ongoing=bool&results=bool&lang=string&search=string]
+### GET /zonalizer/1/analysis[?ongoing=bool&results=bool&lang=string&search=string&space=string]
 
 Get a list of all analysis that ongoing or in the database for Zonalizer.
 See `analyze` under Objects for description of the analyze object.
@@ -228,10 +250,15 @@ The following fields are sortable: `fqdn`, `created` and `updated`.
   `result` object and in the `error` object, default en_US.UTF-8.
 * `search`: A string with the "FQDN" to search/filter on.  See Search for more
   information.
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
 
-### DELETE /zonalizer/1/analysis
+### DELETE /zonalizer/1/analysis[?space=string]
 
 Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
+
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
 
 ### POST /zonalizer/1/analysis?fqdn=string[&<options...>]
 
@@ -243,8 +270,10 @@ description of the analyze object.
   the analysis over IPv4.  (optional)
 * `ipv6`: If true (1), run the analysis over IPv6.  If false (0), do not run
   the analysis over IPv6.  (optional)
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
 
-### GET /zonalizer/1/analysis/:id[?results=bool&lang=string]
+### GET /zonalizer/1/analysis/:id[?results=bool&lang=string&space=string]
 
 Get information about an analyze.  See `analyze` under Objects for description
 of the analyze object.
@@ -253,8 +282,10 @@ of the analyze object.
   response. Default true (1).
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
 
-### GET /zonalizer/1/analysis/:id[?last_results=bool&lang=string]
+### GET /zonalizer/1/analysis/:id[?last_results=bool&lang=string&space=string]
 
 Get information about an analyze and include a set of the last results.
 See `analyze` under Objects for description of the analyze object.
@@ -262,10 +293,17 @@ See `analyze` under Objects for description of the analyze object.
 * `last_results`: An integer with the number of results to include.
 * `lang`: Specify the language to use when generating the `message` in the
   `result` object and in the `error` object, default en_US.UTF-8.
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
 
-### GET /zonalizer/1/analysis/:id/status
+### GET /zonalizer/1/analysis/:id/status[&space=string]
 
 Only get status information about an analyze, this call is optimal for polling.
+
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
+
+Returns the following:
 
 ```
 {
@@ -279,9 +317,12 @@ Only get status information about an analyze, this call is optimal for polling.
 * `progress`: The progress of the check as an integer with the percent of
   completion.
 
-### DELETE /zonalizer/1/analysis/:id
+### DELETE /zonalizer/1/analysis/:id[&space=string]
 
 Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
+
+* `space`: A string that identifies a unique space for analysis, see Spaces for
+  more information.  (optional)
 
 ## Search
 

@@ -50,6 +50,7 @@ our %STAT    = (
 );
 
 our %TEST;
+our %TEST_SPACE;
 
 our $TRANSLATOR;
 
@@ -333,6 +334,19 @@ sub ReadAnalysis {
         my @analysis;
 
         foreach ( sort { $b->{update} <=> $a->{update} } values %TEST ) {
+            if ( $q->{space} ) {
+                unless ( exists $TEST_SPACE{ $_->{id} }
+                    and $TEST_SPACE{ $_->{id} } eq $q->{space} )
+                {
+                    next;
+                }
+            }
+            else {
+                if ( exists $TEST_SPACE{ $_->{id} } ) {
+                    next;
+                }
+            }
+
             my %test = %{$_};
 
             unless ( $q->{results} ) {
@@ -358,6 +372,9 @@ sub ReadAnalysis {
                 $test{results} = \@results;
             }
             $test{url} = $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $test{id} );
+            if ( $q->{space} ) {
+                $test{url} .= '?space' . uri_escape( $q->{space} );
+            }
 
             push( @analysis, \%test );
 
@@ -440,7 +457,7 @@ sub ReadAnalysis {
                     {
                         id       => $_->{id},
                         fqdn     => $_->{fqdn},
-                        url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $_->{id} ),
+                        url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $_->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
                         status   => $_->{status},
                         progress => $_->{progress},
                         created  => $_->{created},
@@ -491,6 +508,7 @@ sub DeleteAnalysis {
     $STAT{api}->{requests}++;
 
     %TEST = ();
+    %TEST_SPACE = ();
 
     $self->Successful( $cb );
     return;
@@ -593,6 +611,8 @@ sub CreateAnalyze {
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
 
+    # TODO: Existing ID control
+
     $self->{logger}->debug('Analyzing ', $fqdn, ' ', $id);
 
     my $test = $TEST{$id} = {
@@ -611,6 +631,9 @@ sub CreateAnalyze {
         ipv4 => $ipv4,
         ipv6 => $ipv6
     };
+    if ( $q->{space} ) {
+        $TEST_SPACE{$id} = $q->{space};
+    }
 
     my $cli;
     Lim::DEBUG and $self->{logger}->debug( 'open ', join( ' ',
@@ -835,8 +858,40 @@ sub ReadAnalyze {
     #
 
     if ( exists $TEST{ $q->{id} } ) {
+        if ( $q->{space} ) {
+            unless ( exists $TEST_SPACE{ $q->{id} }
+                and $TEST_SPACE{ $q->{id} } eq $q->{space} )
+            {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_NOT_FOUND,
+                        message => 'id_not_found'
+                    )
+                );
+                return;
+            }
+        }
+        else {
+            if ( exists $TEST_SPACE{ $q->{id} } ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_NOT_FOUND,
+                        message => 'id_not_found'
+                    )
+                );
+                return;
+            }
+        }
+
         my %test = %{ $TEST{ $q->{id} } };
         $test{url} = $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $test{id} );
+        if ( $q->{space} ) {
+            $test{url} .= '?space' . uri_escape( $q->{space} );
+        }
 
         if ( exists $q->{last_results} and $q->{last_results} ) {
             my $results = delete $test{results};
@@ -875,6 +930,7 @@ sub ReadAnalyze {
     #
 
     $self->{db}->ReadAnalyze(
+        $q->{space} ? ( space => $q->{space} ) : (),
         id => $q->{id},
         cb => sub {
             my ( $analyze ) = @_;
@@ -941,7 +997,7 @@ sub ReadAnalyze {
                 {
                     id       => $analyze->{id},
                     fqdn     => $analyze->{fqdn},
-                    url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $analyze->{id} ),
+                    url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $analyze->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
                     status   => $analyze->{status},
                     progress => $analyze->{progress},
                     created  => $analyze->{created},
@@ -978,6 +1034,35 @@ sub ReadAnalyzeStatus {
     #
 
     if ( exists $TEST{ $q->{id} } ) {
+        if ( $q->{space} ) {
+            unless ( exists $TEST_SPACE{ $q->{id} }
+                and $TEST_SPACE{ $q->{id} } eq $q->{space} )
+            {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_NOT_FOUND,
+                        message => 'id_not_found'
+                    )
+                );
+                return;
+            }
+        }
+        else {
+            if ( exists $TEST_SPACE{ $q->{id} } ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_NOT_FOUND,
+                        message => 'id_not_found'
+                    )
+                );
+                return;
+            }
+        }
+
         $self->Successful( $cb, {
             status => $TEST{ $q->{id} }->{status},
             progress => $TEST{ $q->{id} }->{progress},
@@ -991,6 +1076,7 @@ sub ReadAnalyzeStatus {
     #
 
     $self->{db}->ReadAnalyze(
+        $q->{space} ? ( space => $q->{space} ) : (),
         id => $q->{id},
         cb => sub {
             my ( $analyze ) = @_;
@@ -1090,6 +1176,7 @@ sub StoreAnalyze {
     $self->{logger}->debug('Storing ', $id);
 
     $self->{db}->CreateAnalyze(
+        $TEST_SPACE{ $id } ? ( space => $TEST_SPACE{ $id } ) : (),
         analyze => $TEST{ $id },
         cb => sub {
             # uncoverable branch true
@@ -1104,6 +1191,7 @@ sub StoreAnalyze {
             }
 
             delete $TEST{ $id };
+            delete $TEST_SPACE{ $id };
         }
     );
     return;

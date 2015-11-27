@@ -35,10 +35,10 @@ Lim::Plugin::Zonalizer::DB::Memory - The in memory database for Zonalizer
 sub Init {
     my ( $self ) = @_;
 
-    $self->{analysis}      = [];
-    $self->{analyze}       = {};
-    $self->{analyze_fqdn}  = {};
-    $self->{analyze_rfqdn} = {};
+    $self->{space}->{''}->{analysis}      = [];
+    $self->{space}->{''}->{analyze}       = {};
+    $self->{space}->{''}->{analyze_fqdn}  = {};
+    $self->{space}->{''}->{analyze_rfqdn} = {};
 
     return;
 }
@@ -100,25 +100,33 @@ sub ReadAnalysis {
         }
     }
 
+    my $space = $q->{space} ? $q->{space} : '';
+    if ( $space and !exists $self->{space}->{$space} ) {
+        $self->{space}->{''}->{analysis}      = [];
+        $self->{space}->{''}->{analyze}       = {};
+        $self->{space}->{''}->{analyze_fqdn}  = {};
+        $self->{space}->{''}->{analyze_rfqdn} = {};
+    }
+
     my @analysis;
     my ( $paging, $previous, $next ) = ( 0, 0, 0 );
-    my $analysis = $self->{analysis};
+    my $analysis = $self->{space}->{$space}->{analysis};
 
     if ( defined $search_fqdn ) {
-        unless ( exists $self->{analyze_fqdn}->{$search_fqdn} ) {
+        unless ( exists $self->{space}->{$space}->{analyze_fqdn}->{$search_fqdn} ) {
             $args{cb}->( undef );
             return;
         }
 
-        $analysis = $self->{analyze_fqdn}->{$search_fqdn};
+        $analysis = $self->{space}->{$space}->{analyze_fqdn}->{$search_fqdn};
     }
     elsif ( defined $search_fqdn2 ) {
-        unless ( exists $self->{analyze_rfqdn}->{$search_fqdn2} ) {
+        unless ( exists $self->{space}->{$space}->{analyze_rfqdn}->{$search_fqdn2} ) {
             $args{cb}->( undef );
             return;
         }
 
-        $analysis = $self->{analyze_rfqdn}->{$search_fqdn2};
+        $analysis = $self->{space}->{$space}->{analyze_rfqdn}->{$search_fqdn2};
     }
 
     if ( scalar @{ $analysis } and defined $args{sort} ) {
@@ -215,9 +223,22 @@ sub DeleteAnalysis {
     }
     undef $@;
 
-    my $deleted_analysis = scalar @{ $self->{analysis} };
+    my $space = $q->{space} ? $q->{space} : '';
+    if ( $space and !exists $self->{space}->{$space} ) {
+        $self->{space}->{''}->{analysis}      = [];
+        $self->{space}->{''}->{analyze}       = {};
+        $self->{space}->{''}->{analyze_fqdn}  = {};
+        $self->{space}->{''}->{analyze_rfqdn} = {};
+    }
 
-    $self->Init;
+    my $deleted_analysis = scalar @{ $self->{space}->{$space}->{analysis} };
+
+    if ( $space ) {
+        delete $self->{space}->{$space};
+    }
+    else {
+        $self->Init;
+    }
 
     $args{cb}->( $deleted_analysis );
     return;
@@ -244,7 +265,16 @@ sub CreateAnalyze {
         $args{cb}->();
         return;
     }
-    if ( exists $self->{analyze}->{ $args{analyze}->{id} } ) {
+
+    my $space = $q->{space} ? $q->{space} : '';
+    if ( $space and !exists $self->{space}->{$space} ) {
+        $self->{space}->{''}->{analysis}      = [];
+        $self->{space}->{''}->{analyze}       = {};
+        $self->{space}->{''}->{analyze_fqdn}  = {};
+        $self->{space}->{''}->{analyze_rfqdn} = {};
+    }
+
+    if ( exists $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} } ) {
         $@ = ERR_DUPLICATE_ID;
         $args{cb}->();
         return;
@@ -255,10 +285,10 @@ sub CreateAnalyze {
     my $analyze = clone $args{analyze};
     $analyze->{_rev} = $uuid->export( 'str' );
 
-    push( @{ $self->{analysis} }, $analyze );
-    $self->{analyze}->{ $args{analyze}->{id} } = $analyze;
-    push( @{ $self->{analyze_fqdn}->{ $args{analyze}->{fqdn} } }, $analyze );
-    push( @{ $self->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $args{analyze}->{fqdn} ) ) ) } }, $analyze );
+    push( @{ $self->{space}->{$space}->{analysis} }, $analyze );
+    $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} } = $analyze;
+    push( @{ $self->{space}->{$space}->{analyze_fqdn}->{ $args{analyze}->{fqdn} } }, $analyze );
+    push( @{ $self->{space}->{$space}->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $args{analyze}->{fqdn} ) ) ) } }, $analyze );
 
     $args{cb}->( clone $analyze );
     return;
@@ -279,13 +309,21 @@ sub ReadAnalyze {
     }
     undef $@;
 
-    unless ( exists $self->{analyze}->{ $args{id} } ) {
+    my $space = $q->{space} ? $q->{space} : '';
+    if ( $space and !exists $self->{space}->{$space} ) {
+        $self->{space}->{''}->{analysis}      = [];
+        $self->{space}->{''}->{analyze}       = {};
+        $self->{space}->{''}->{analyze_fqdn}  = {};
+        $self->{space}->{''}->{analyze_rfqdn} = {};
+    }
+
+    unless ( exists $self->{space}->{$space}->{analyze}->{ $args{id} } ) {
         $@ = ERR_ID_NOT_FOUND;
         $args{cb}->();
         return;
     }
 
-    $args{cb}->( clone $self->{analyze}->{ $args{id} } );
+    $args{cb}->( clone $self->{space}->{$space}->{analyze}->{ $args{id} } );
     return;
 }
 
@@ -302,18 +340,26 @@ sub UpdateAnalyze {
     $self->ValidateAnalyze( $args{analyze} );
     undef $@;
 
-    unless ( exists $self->{analyze}->{ $args{analyze}->{id} } ) {
+    my $space = $q->{space} ? $q->{space} : '';
+    if ( $space and !exists $self->{space}->{$space} ) {
+        $self->{space}->{''}->{analysis}      = [];
+        $self->{space}->{''}->{analyze}       = {};
+        $self->{space}->{''}->{analyze_fqdn}  = {};
+        $self->{space}->{''}->{analyze_rfqdn} = {};
+    }
+
+    unless ( exists $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} } ) {
         $@ = ERR_ID_NOT_FOUND;
         $args{cb}->();
         return;
     }
-    unless ( defined $args{analyze}->{_rev} and $self->{analyze}->{ $args{analyze}->{id} }->{_rev} eq $args{analyze}->{_rev} ) {
+    unless ( defined $args{analyze}->{_rev} and $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} }->{_rev} eq $args{analyze}->{_rev} ) {
         $@ = ERR_REVISION_MISSMATCH;
         $args{cb}->();
         return;
     }
 
-    my $analyze = $self->{analyze}->{ $args{analyze}->{id} };
+    my $analyze = $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} };
     foreach ( keys %$analyze ) {
         unless ( exists $args{analyze}->{$_} ) {
             delete $analyze->{$_};
@@ -345,15 +391,23 @@ sub DeleteAnalyze {
     }
     undef $@;
 
-    unless ( exists $self->{analyze}->{ $args{id} } ) {
+    my $space = $q->{space} ? $q->{space} : '';
+    if ( $space and !exists $self->{space}->{$space} ) {
+        $self->{space}->{''}->{analysis}      = [];
+        $self->{space}->{''}->{analyze}       = {};
+        $self->{space}->{''}->{analyze_fqdn}  = {};
+        $self->{space}->{''}->{analyze_rfqdn} = {};
+    }
+
+    unless ( exists $self->{space}->{$space}->{analyze}->{ $args{id} } ) {
         $@ = ERR_ID_NOT_FOUND;
         $args{cb}->();
         return;
     }
 
-    @{ $self->{analyzes} } = grep { $_->{id} ne $args{id} } @{ $self->{analyzes} };
-    @{ $self->{analyze_fqdn}->{ $self->{analyze}->{ $args{id} }->{fqdn} } } = grep { $_->{id} ne $args{id} } @{ $self->{analyze_fqdn}->{ $self->{analyze}->{ $args{id} }->{fqdn} } };
-    @{ $self->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $self->{analyze}->{ $args{id} }->{fqdn} ) ) ) } } = grep { $_->{id} ne $args{id} } @{ $self->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $self->{analyze}->{ $args{id} }->{fqdn} ) ) ) } };
+    @{ $self->{space}->{$space}->{analyzes} } = grep { $_->{id} ne $args{id} } @{ $self->{space}->{$space}->{analyzes} };
+    @{ $self->{space}->{$space}->{analyze_fqdn}->{ $self->{space}->{$space}->{analyze}->{ $args{id} }->{fqdn} } } = grep { $_->{id} ne $args{id} } @{ $self->{space}->{$space}->{analyze_fqdn}->{ $self->{space}->{$space}->{analyze}->{ $args{id} }->{fqdn} } };
+    @{ $self->{space}->{$space}->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $self->{space}->{$space}->{analyze}->{ $args{id} }->{fqdn} ) ) ) } } = grep { $_->{id} ne $args{id} } @{ $self->{space}->{$space}->{analyze_rfqdn}->{ join( '.', reverse( split( /\./o, $self->{space}->{$space}->{analyze}->{ $args{id} }->{fqdn} ) ) ) } };
 
     $args{cb}->();
     return;

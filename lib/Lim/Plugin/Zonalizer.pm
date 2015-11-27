@@ -6,7 +6,7 @@ use base qw(Exporter Lim::Component);
 
 our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
-  ERR_INVALID_AFTER ERR_INVALID_BEFORE
+  ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
   STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED STATUS_STOPPED
   STATUS_UNKNOWN
   );
@@ -14,7 +14,7 @@ our %EXPORT_TAGS = (
     err => [
         qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
            ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
-           ERR_INVALID_AFTER ERR_INVALID_BEFORE)
+           ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH)
     ],
     status => [
         qw(STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
@@ -77,6 +77,8 @@ See API documentation for full description about errors.
 
 =item ERR_INVALID_BEFORE
 
+=item ERR_SPACE_MISSMATCH
+
 =back
 
 =cut
@@ -89,6 +91,7 @@ sub ERR_INVALID_SORT_FIELD() { return 'invalid_sort_field' }
 sub ERR_INTERNAL_DATABASE()  { return 'internal_database_error' }
 sub ERR_INVALID_AFTER()      { return 'invalid_after' }
 sub ERR_INVALID_BEFORE()     { return 'invalid_before' }
+sub ERR_SPACE_MISSMATCH()    { return 'space_missmatch' }
 
 =head1 STATUSES
 
@@ -203,6 +206,7 @@ sub Calls {
         ReadAnalysis => {
             in => {
                 version   => 'integer',
+                space     => 'string optional',
                 search    => 'string optional',
                 ongoing   => 'integer optional',
                 results   => 'integer optional',
@@ -260,13 +264,15 @@ sub Calls {
         },
         DeleteAnalysis => {
             in => {
-                version => 'integer'
+                version => 'integer',
+                space     => 'string optional',
             }
         },
 
         CreateAnalyze => {
             in  => {
                 version => 'integer',
+                space     => 'string optional',
                 fqdn => 'string',
                 ipv4 => 'integer optional',
                 ipv6 => 'integer optional'
@@ -277,6 +283,7 @@ sub Calls {
             in => {
                 version => 'integer',
                 id => 'string',
+                space     => 'string optional',
                 results => 'integer optional',
                 lang => 'string optional',
                 last_results => 'integer optional'
@@ -317,6 +324,7 @@ sub Calls {
             in => {
                 version => 'integer',
                 id => 'string',
+                space     => 'string optional',
             },
             out => {
                 status   => 'string',
@@ -327,7 +335,8 @@ sub Calls {
         DeleteAnalyze => {
             in => {
                 version => 'integer',
-                id => 'string'
+                id => 'string',
+                space     => 'string optional',
             }
         }
     };

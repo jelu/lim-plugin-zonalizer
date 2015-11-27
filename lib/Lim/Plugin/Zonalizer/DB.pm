@@ -95,6 +95,10 @@ details.
 
 =over 4
 
+=item space => string
+
+The space to read from, see Spaces in API documentation.
+
 =item search => string
 
 =item limit => number
@@ -151,6 +155,10 @@ Delete all analysis from the database.
 
 =over 4
 
+=item space => string
+
+The space to delete in, see Spaces in API documentation.
+
 =item cb => sub { my ($deleted_analysis) = @_; ... }
 
 The callback subrutin that will be called upon success or failure, if there
@@ -177,6 +185,10 @@ sub DeleteAnalysis {
 Create a new analyze object in the database.
 
 =over 4
+
+=item space => string
+
+The space to create in, see Spaces in API documentation.
 
 =item analyze => hash
 
@@ -209,6 +221,10 @@ Read a analyze object from the database and return it via the callback provided.
 
 =over 4
 
+=item space => string
+
+The space to read from, see Spaces in API documentation.
+
 =item id => id
 
 The analyze identifier to read.
@@ -240,6 +256,10 @@ Update a analyze object in the database.
 
 =over 4
 
+=item space => string
+
+The space to update in, see Spaces in API documentation.
+
 =item analyze => hash
 
 The updated analyze object, this object must have been read from the database.
@@ -270,6 +290,10 @@ sub UpdateAnalyze {
 Delete a analyze object from the database.
 
 =over 4
+
+=item space => string
+
+The space to delete in, see Spaces in API documentation.
 
 =item id => id
 
