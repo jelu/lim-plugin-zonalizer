@@ -981,7 +981,7 @@ sub ReadAnalyzeStatus {
         $self->Successful( $cb, {
             status => $TEST{ $q->{id} }->{status},
             progress => $TEST{ $q->{id} }->{progress},
-            update => $TEST{ $q->{id} }->{update}
+            updated => $TEST{ $q->{id} }->{updated}
         } );
         return;
     }
