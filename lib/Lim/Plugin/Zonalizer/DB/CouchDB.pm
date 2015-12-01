@@ -475,7 +475,7 @@ sub DeleteAnalysis {
     $analysis = sub {
 
         # uncoverable branch false
-        Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all' );
+        Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all', $args{space} ? ' '.$args{space} : ''  );
         $self->{db}->view( 'analysis/all', {
             $args{space} ? (
                 startkey => [ $args{space}, undef ],

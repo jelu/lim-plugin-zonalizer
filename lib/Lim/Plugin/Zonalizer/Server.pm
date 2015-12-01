@@ -505,12 +505,53 @@ sub ReadAnalysis {
 
 sub DeleteAnalysis {
     my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
     $STAT{api}->{requests}++;
 
-    %TEST = ();
-    %TEST_SPACE = ();
+    $self->{db}->DeleteAnalysis(
+        $q->{space} ? ( space => $q->{space} ) : (),
+        cb => sub {
+            my ( $deleted_analysis ) = @_;
 
-    $self->Successful( $cb );
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
+            }
+
+            if ( $@ ) {
+                $STAT{api}->{errors}++;
+
+                # uncoverable branch false
+                Lim::ERR and $self->{logger}->error( $@ );
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module => $self,
+                        code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+                    )
+                );
+                return;
+            }
+
+            if ( $q->{space} ) {
+                foreach ( keys %TEST_SPACE ) {
+                    if ( $TEST_SPACE{ $_ } eq $q->{space} ) {
+                        delete $TEST{ $_ };
+                        delete $TEST_SPACE{ $_ };
+                    }
+                }
+            }
+            else {
+                %TEST = ();
+                %TEST_SPACE = ();
+            }
+
+            $self->Successful( $cb );
+        }
+    );
     return;
 }
 
@@ -1138,23 +1179,89 @@ sub ReadAnalyzeStatus {
 
 sub DeleteAnalyze {
     my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
     $STAT{api}->{requests}++;
 
-    unless ( exists $TEST{ $q->{id} } ) {
-        $self->Error(
-            $cb,
-            Lim::Error->new(
-                module  => $self,
-                code    => HTTP::Status::HTTP_NOT_FOUND,
-                message => 'id_not_found'
-            )
-        );
+    if ( exists $TEST{ $q->{id} } ) {
+        if ( $q->{space} ) {
+            unless ( exists $TEST_SPACE{ $q->{id} }
+                and $TEST_SPACE{ $q->{id} } eq $q->{space} )
+            {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_NOT_FOUND,
+                        message => 'id_not_found'
+                    )
+                );
+                return;
+            }
+        }
+        else {
+            if ( exists $TEST_SPACE{ $q->{id} } ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_NOT_FOUND,
+                        message => 'id_not_found'
+                    )
+                );
+                return;
+            }
+        }
+
+        delete $TEST{ $q->{id} };
+        delete $TEST_SPACE{ $q->{id} };
+
+        $self->Successful( $cb );
         return;
     }
 
-    delete $TEST{ $q->{id} };
+    $self->{db}->DeleteAnalyze(
+        $q->{space} ? ( space => $q->{space} ) : (),
+        id => $q->{id},
+        cb => sub {
 
-    $self->Successful( $cb );
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
+            }
+
+            if ( $@ ) {
+                $STAT{api}->{errors}++;
+
+                if ( $@ eq ERR_ID_NOT_FOUND ) {
+                    $self->Error(
+                        $cb,
+                        Lim::Error->new(
+                            module  => $self,
+                            code    => HTTP::Status::HTTP_NOT_FOUND,
+                            message => $@
+                        )
+                    );
+                    return;
+                }
+
+                # uncoverable branch false
+                Lim::ERR and $self->{logger}->error( $@ );
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module => $self,
+                        code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+                    )
+                );
+                return;
+            }
+
+            $self->Successful( $cb );
+        }
+    );
     return;
 }
 
