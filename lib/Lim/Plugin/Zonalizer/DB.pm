@@ -366,6 +366,45 @@ sub ValidateAnalyze {
             confess 'analyze->results is invalid: '.$@;
         }
     }
+    if ( exists $analyze->{ns} ) {
+        unless ( ref( $analyze->{ns} ) eq 'ARRAY' ) {
+            confess 'analyze->ns is not ARRAY';
+        }
+        my $count = 1;
+        foreach my $ns ( @{ $analyze->{ns} } ) {
+            unless ( ref( $ns ) eq 'HASH' ) {
+                confess 'analyze->ns['.$count.'] is not HASH';
+            }
+            foreach ( qw(fqdn) ) {
+                unless ( defined $ns->{$_} ) {
+                    confess 'analyze->ns['.$count.']->' . $_ . ' is not defined';
+                }
+            }
+            foreach ( qw(ip) ) {
+                if ( exists $ns->{$_} and !defined $ns->{$_} ) {
+                    confess 'analyze->ns['.$count.']->' . $_ . ' is not defined';
+                }
+            }
+            $count++;
+        }
+    }
+    if ( exists $analyze->{ds} ) {
+        unless ( ref( $analyze->{ds} ) eq 'ARRAY' ) {
+            confess 'analyze->ds is not ARRAY';
+        }
+        my $count = 1;
+        foreach my $ds ( @{ $analyze->{ds} } ) {
+            unless ( ref( $ds ) eq 'HASH' ) {
+                confess 'analyze->ds['.$count.'] is not HASH';
+            }
+            foreach ( qw(keytag algorithm type digest) ) {
+                unless ( defined $ds->{$_} ) {
+                    confess 'analyze->ds['.$count.']->' . $_ . ' is not defined';
+                }
+            }
+            $count++;
+        }
+    }
     return;
 }
 

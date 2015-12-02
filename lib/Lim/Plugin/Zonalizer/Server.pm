@@ -452,6 +452,28 @@ sub ReadAnalysis {
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
             foreach ( @_ ) {
+                my ( @ns, @ds );
+
+                if ( $_->{ns} ) {
+                    foreach my $ns ( @{ $_->{ns} } ) {
+                        push( @ns, {
+                            fqdn => $ns->{fqdn},
+                            exists $ns->{ip} ? ( ip => $ns->{ip} ) : ()
+                        } );
+                    }
+                }
+
+                if ( $_->{ds} ) {
+                    foreach my $ds ( @{ $_->{ds} } ) {
+                        push( @ds, {
+                            keytag => $ds->{keytag},
+                            algorithm => $ds->{algorithm},
+                            type => $ds->{type},
+                            digest => $ds->{digest}
+                        } );
+                    }
+                }
+
                 push(
                     @analysis,
                     {
@@ -472,6 +494,8 @@ sub ReadAnalysis {
                         },
                         ipv4 => $_->{ipv4},
                         ipv6 => $_->{ipv6},
+                        scalar @ns ? ( ns => \@ns ) : (),
+                        scalar @ds ? ( ds => \@ds ) : ()
                     }
                 );
             }
@@ -644,6 +668,52 @@ sub CreateAnalyze {
         return;
     }
 
+    my @ns;
+    if ( $q->{ns} ) {
+        unless ( ref($q->{ns}) eq 'ARRAY' ) {
+            $q->{ns} = [ $q->{ns} ];
+        }
+
+        foreach ( @{ $q->{ns} } ) {
+            if ( !$_->{fqdn} or ( exists $_->{ip} && !$_->{ip} ) ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_BAD_REQUEST,
+                        message => 'invalid_ns'
+                    )
+                );
+                return;
+            }
+
+            push( @ns, join( '', '--ns=', $_->{fqdn}, $_->{ip} ? ( '/', $_->{ip} ) : () ) );
+        }
+    }
+
+    my @ds;
+    if ( $q->{ds} ) {
+        unless ( ref($q->{ds}) eq 'ARRAY' ) {
+            $q->{ds} = [ $q->{ds} ];
+        }
+
+        foreach ( @{ $q->{ds} } ) {
+            unless ( $_->{keytag} and $_->{algorithm} and $_->{type} and $_->{digest} ) {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_BAD_REQUEST,
+                        message => 'invalid_ds'
+                    )
+                );
+                return;
+            }
+
+            push( @ds, join( '--ds=', join( ',', $_->{keytag}, $_->{algorithm}, $_->{type}, $_->{digest} ) ) );
+        }
+    }
+
     my $fqdn = $q->{fqdn};
     $fqdn =~ s/\.$//o;
     $fqdn .= '.';
@@ -670,7 +740,9 @@ sub CreateAnalyze {
             critical => 0
         },
         ipv4 => $ipv4,
-        ipv6 => $ipv6
+        ipv6 => $ipv6,
+        $q->{ns} ? ( ns => $q->{ns} ) : (),
+        $q->{ds} ? ( ds => $q->{ds} ) : ()
     };
     if ( $q->{space} ) {
         $TEST_SPACE{$id} = $q->{space};
@@ -683,6 +755,8 @@ sub CreateAnalyze {
         $ipv4 ? '--ipv4' : '--no-ipv4',
         $ipv6 ? '--ipv6' : '--no-ipv6',
         qw(--json_stream --level DEBUG),
+        @ns,
+        @ds,
         $fqdn
     ) );
     unless (
@@ -692,6 +766,8 @@ sub CreateAnalyze {
             $ipv4 ? '--ipv4' : '--no-ipv4',
             $ipv6 ? '--ipv6' : '--no-ipv6',
             qw(--json_stream --level DEBUG),
+            @ns,
+            @ds,
             $fqdn ) )
     {
         Lim::ERR and $self->{logger}->error('open: ', $!);
@@ -1033,6 +1109,28 @@ sub ReadAnalyze {
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
 
+            my ( @ns, @ds );
+
+            if ( $analyze->{ns} ) {
+                foreach my $ns ( @{ $analyze->{ns} } ) {
+                    push( @ns, {
+                        fqdn => $ns->{fqdn},
+                        exists $ns->{ip} ? ( ip => $ns->{ip} ) : ()
+                    } );
+                }
+            }
+
+            if ( $analyze->{ds} ) {
+                foreach my $ds ( @{ $analyze->{ds} } ) {
+                    push( @ds, {
+                        keytag => $ds->{keytag},
+                        algorithm => $ds->{algorithm},
+                        type => $ds->{type},
+                        digest => $ds->{digest}
+                    } );
+                }
+            }
+
             $self->Successful(
                 $cb,
                 {
@@ -1053,6 +1151,8 @@ sub ReadAnalyze {
                     },
                     ipv4 => $analyze->{ipv4},
                     ipv6 => $analyze->{ipv6},
+                    scalar @ns ? ( ns => \@ns ) : (),
+                    scalar @ds ? ( ds => \@ds ) : ()
                 }
             );
         }

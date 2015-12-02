@@ -182,6 +182,8 @@ As an example; To separate a web app from a batch script, the web app may set
 the space to "web" while the batch script sets it to "batch".  In this way they
 will not pollute each other spaces.
 
+## Undelegated Analyzing
+
 ## Calls
 
 ### GET /zonalizer/1/version
@@ -272,6 +274,10 @@ description of the analyze object.
   the analysis over IPv6.  (optional)
 * `space`: A string that identifies a unique space for analysis, see Spaces for
   more information.  (optional)
+* `ns`: An array of nameserver objects, see `ns` object and Undelegated
+  Analyzing for more information.
+* `ds`: An array of delegation signer objects, see `ds` object and Undelegated
+  Analyzing for more information.
 
 ### GET /zonalizer/1/analysis/:id[?results=bool&lang=string&space=string]
 
@@ -368,7 +374,19 @@ The main analyze object which may include all results from Zonemaster.
     "warning": integer,
     "error": integer,
     "critical": integer
-  }
+  },
+  "ipv4": integer,
+  "ipv6": integer,
+  "ns": [
+    ns,
+    ns,
+    ...
+  ],
+  "ds": [
+    ds,
+    ds,
+    ...
+  ]
 }
 ```
 
@@ -386,6 +404,12 @@ The main analyze object which may include all results from Zonemaster.
 * `summary.warning`: The number of WARNING results in `results`.
 * `summary.error`: The number of ERROR results in `results`.
 * `summary.critical`: The number of CRITICAL results in `results`.
+* `ipv4`: If true (1), the analysis ran over IPv4.
+* `ipv6`: If true (1), the analysis ran over IPv6.
+* `ns`: An array of nameserver objects, see `ns` object and Undelegated
+  Analyzing for more information.
+* `ds`: An array of delegation signer objects, see `ds` object and Undelegated
+  Analyzing for more information.
 
 ### error
 
@@ -432,6 +456,38 @@ This documentation corresponds to version 1.0.7 of Zonemaster.
 * `timestamp`: A timestamp for when the result was generated, this is a float
   value of the number of seconds since the start of the analysis.
 * `message`: A describing message of the result.
+
+### ns
+
+A nameserver object that is used for undelegated analysis.
+
+```
+{
+  "fqdn": "string",
+  "ip": "string"
+}
+```
+
+* `fqdn`: The nameserver's FQDN.
+* `ip`: An IP-address to use instead of doing a lookup of the nameserver's FQDN.
+  (optional)
+
+### ds
+
+A delegation signer records that is used for undelegated analysis.  The four
+pieces of data should be in the same format they would have in a zone file.
+
+For a desciption of the object properties below please see section 5 in
+RFC 4034.
+
+```
+{
+  "keytag": "string",
+  "algorithm": "string",
+  "type": "string",
+  "digest": "string"
+}
+```
 
 ## Analyze Statuses
 
@@ -539,6 +595,14 @@ The requested analysis over IPv6 is not allowed.
 #### no_ip_protocol_selected
 
 The requested analysis has both IPv4 and IPv6 disabled, one must be enabled.
+
+#### invalid_ns
+
+Any of all of the `ns` objects supplied are invalid.
+
+#### invalid_ds
+
+Any of all of the `ds` objects supplied are invalid.
 
 ### HTTP Errors
 

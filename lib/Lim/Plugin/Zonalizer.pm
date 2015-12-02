@@ -6,7 +6,8 @@ use base qw(Exporter Lim::Component);
 
 our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
-  ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
+  ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH ERR_INVALID_NS
+  ERR_INVALID_DS
   STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED STATUS_STOPPED
   STATUS_UNKNOWN
   );
@@ -14,7 +15,8 @@ our %EXPORT_TAGS = (
     err => [
         qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
            ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
-           ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH)
+           ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
+           ERR_INVALID_NS ERR_INVALID_DS)
     ],
     status => [
         qw(STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
@@ -79,6 +81,10 @@ See API documentation for full description about errors.
 
 =item ERR_SPACE_MISSMATCH
 
+=item ERR_INVALID_NS
+
+=item ERR_INVALID_DS
+
 =back
 
 =cut
@@ -92,6 +98,8 @@ sub ERR_INTERNAL_DATABASE()  { return 'internal_database_error' }
 sub ERR_INVALID_AFTER()      { return 'invalid_after' }
 sub ERR_INVALID_BEFORE()     { return 'invalid_before' }
 sub ERR_SPACE_MISSMATCH()    { return 'space_missmatch' }
+sub ERR_INVALID_NS()         { return 'invalid_ns' }
+sub ERR_INVALID_DS()         { return 'invalid_ds' }
 
 =head1 STATUSES
 
@@ -248,7 +256,17 @@ sub Calls {
                         critical => 'integer'
                     },
                     ipv4 => 'integer',
-                    ipv6 => 'integer'
+                    ipv6 => 'integer',
+                    ns => {
+                        fqdn => 'string',
+                        ip => 'string optional'
+                    },
+                    ds => {
+                        keytag => 'string',
+                        algorithm => 'string',
+                        type => 'string',
+                        digest => 'string'
+                    }
                 },
                 paging => {
                     ''      => 'single',
@@ -275,7 +293,17 @@ sub Calls {
                 space     => 'string optional',
                 fqdn => 'string',
                 ipv4 => 'integer optional',
-                ipv6 => 'integer optional'
+                ipv6 => 'integer optional',
+                ns => {
+                    fqdn => 'string',
+                    ip => 'string optional'
+                },
+                ds => {
+                    keytag => 'string',
+                    algorithm => 'string',
+                    type => 'string',
+                    digest => 'string'
+                }
             },
             out => { id   => 'string' }
         },
@@ -317,7 +345,17 @@ sub Calls {
                     critical => 'integer'
                 },
                 ipv4 => 'integer',
-                ipv6 => 'integer'
+                ipv6 => 'integer',
+                ns => {
+                    fqdn => 'string',
+                    ip => 'string optional'
+                },
+                ds => {
+                    keytag => 'string',
+                    algorithm => 'string',
+                    type => 'string',
+                    digest => 'string'
+                }
             }
         },
         ReadAnalyzeStatus => {
