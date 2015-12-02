@@ -15,16 +15,23 @@ my $drop = 0;
 my $create = 0;
 my $test = 0;
 my $debug = 0;
+my $read = 50;
+my $update = 25;
 
 GetOptions(
     'drop' => \$drop,
     'create' => \$create,
     'test' => \$test,
     'debug' => \$debug,
+    'read:i' => \$read,
+    'update:i' => \$update,
 );
 
-unless ( $ARGV[0] ) {
-    die 'usage: zonalizer-create-database [--drop|--create|--test] <uri>'
+$read += 0;
+$update += 0;
+
+unless ( $ARGV[0] and $read > 0 and $update > 0 ) {
+    die 'usage: zonalizer-couchdb-database [--drop|--create|--test|--debug|--read <num>|--update <num>] <uri>'
 }
 
 my $JSON = JSON->new;
@@ -66,11 +73,13 @@ foreach ( keys %{schema()} ) {
 
 !$debug and print 'Checking objects ...';
 my $skip = 0;
+my $total_rows = 0;
 my $changed = 0;
+my @update;
 
 while ( 1 ) {
-    $debug and say '_design/analysis/_view/id?include_docs=true&limit=25&skip='.$skip;
-    my $list = req( GET => '_design/analysis/_view/id?include_docs=true&limit=25&skip='.$skip )->recv;
+    $debug and say '_design/analysis/_view/id?include_docs=true&limit='.$read.'&skip='.$skip;
+    my $list = req( GET => '_design/analysis/_view/id?include_docs=true&limit='.$read.'&skip='.$skip )->recv;
     $list = $JSON->decode( $list );
     unless ( ref($list) eq 'HASH'
         and defined $list->{total_rows}
@@ -78,6 +87,10 @@ while ( 1 ) {
         and ref($list->{rows}) eq 'ARRAY' )
     {
         die 'Unexpected return or missing data from CouchDB when listing analysis';
+    }
+
+    if ( $list->{total_rows} > $total_rows ) {
+        $total_rows = $list->{total_rows};
     }
 
     my @docs;
@@ -96,20 +109,31 @@ while ( 1 ) {
     foreach (@docs) {
         if ( check( $_ ) ) {
             $debug and say 'saving changes on ', $_->{_id};
-            $db->save_doc( $_ )->recv;
+            push(@update, $_);
             $changed++;
+
+            if (scalar @update == $update) {
+                $db->bulk_docs( \@update )->recv;
+                @update = ();
+            }
         }
 
         $skip++;
-        !$debug and print "\r", 'Checking objects ... ', $skip, ' / ', $list->{total_rows}, ' (changed: ', $changed, ')';
+        !$debug and print "\r", 'Checking objects ... ', $skip, ' / ', $total_rows, ' (changed: ', $changed, ')';
     }
-    $debug and say 'Checking objects ... ', $skip, ' / ', $list->{total_rows}, ' (changed: ', $changed, ')';
+    $debug and say 'Checking objects ... ', $skip, ' / ', $total_rows, ' (changed: ', $changed, ')';
 
-    unless ( $skip < $list->{total_rows} ) {
-        !$debug and say ' done';
+    unless ( $skip < $total_rows ) {
         last;
     }
 }
+
+if (scalar @update) {
+    $db->bulk_docs( \@update )->recv;
+}
+
+!$debug and print "\r";
+say 'Checking objects ... ', $skip, ' / ', $total_rows, ' (changed: ', $changed, ') done';
 
 exit;
 
@@ -293,11 +317,11 @@ sub req {
 
 =head1 NAME
 
-zonalizer-create-database - Create the CouchDB database for Zonalizer
+zonalizer-couchdb-database - Create the CouchDB database for Zonalizer
 
 =head1 SYNOPSIS
 
-zonalizer-create-database <uri>
+zonalizer-couchdb-database <uri>
 
 =head1 AUTHOR
 
