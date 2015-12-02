@@ -14,11 +14,13 @@ STDOUT->autoflush(1);
 my $drop = 0;
 my $create = 0;
 my $test = 0;
+my $debug = 0;
 
 GetOptions(
     'drop' => \$drop,
     'create' => \$create,
-    'test' => \$test
+    'test' => \$test,
+    'debug' => \$debug,
 );
 
 unless ( $ARGV[0] ) {
@@ -62,12 +64,13 @@ foreach ( keys %{schema()} ) {
     } ) )->recv;
 }
 
-print 'Checking objects ...';
+!$debug and print 'Checking objects ...';
 my $skip = 0;
 my $changed = 0;
 
 while ( 1 ) {
-    my $list = req( GET => '_design/analysis/_view/all?include_docs=true&limit=5&skip='.$skip )->recv;
+    $debug and say '_design/analysis/_view/id?include_docs=true&limit=25&skip='.$skip;
+    my $list = req( GET => '_design/analysis/_view/id?include_docs=true&limit=25&skip='.$skip )->recv;
     $list = $JSON->decode( $list );
     unless ( ref($list) eq 'HASH'
         and defined $list->{total_rows}
@@ -86,21 +89,24 @@ while ( 1 ) {
             die 'Unexpected return or missing data from CouchDB when reading list of analysis';
         }
 
+        $debug and say 'fetched ', $_->{id};
         push(@docs, $_->{doc});
     }
 
     foreach (@docs) {
         if ( check( $_ ) ) {
+            $debug and say 'saving changes on ', $_->{_id};
             $db->save_doc( $_ )->recv;
             $changed++;
         }
 
         $skip++;
-        print "\r", 'Checking objects ... ', $skip, ' / ', $list->{total_rows}, ' (changed: ', $changed, ')';
+        !$debug and print "\r", 'Checking objects ... ', $skip, ' / ', $list->{total_rows}, ' (changed: ', $changed, ')';
     }
+    $debug and say 'Checking objects ... ', $skip, ' / ', $list->{total_rows}, ' (changed: ', $changed, ')';
 
     unless ( $skip < $list->{total_rows} ) {
-        say ' done';
+        !$debug and say ' done';
         last;
     }
 }
@@ -146,6 +152,15 @@ sub schema {
     return {
         '_design/new_analysis' => {
             views => {
+                id => {
+                    map => '
+function (doc) {
+    if (doc.type == "new_analyze") {
+        emit(null);
+    }
+}
+'
+                },
                 all => {
                     map => '
 function (doc) {
@@ -155,19 +170,19 @@ function (doc) {
 }
 '
                 },
-                only => {
-                    map => '
-function (doc) {
-    if (doc.type == "new_analyze") {
-        emit([doc.space, doc.id]);
-    }
-}
-'
-                }
             }
         },
         '_design/analysis' => {
             views => {
+                id => {
+                    map => '
+function (doc) {
+    if (doc.type == "analyze") {
+        emit(null);
+    }
+}
+'
+                },
                 all => {
                     map => '
 function (doc) {
