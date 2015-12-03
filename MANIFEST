@@ -1,9 +1,15 @@
 Changes
 
-lib/Lim/Plugin/Zonalizer.pm
+lib/Lim/Plugin/Zonalizer/DB.pm
+lib/Lim/Plugin/Zonalizer/DB/CouchDB.pm
+lib/Lim/Plugin/Zonalizer/DB/Memory.pm
 lib/Lim/Plugin/Zonalizer/CLI.pm
 lib/Lim/Plugin/Zonalizer/Client.pm
+lib/Lim/Plugin/Zonalizer/Collector.pm
 lib/Lim/Plugin/Zonalizer/Server.pm
+lib/Lim/Plugin/Zonalizer.pm
+
+bin/zonalizer-collector
 
 Makefile.PL
 MANIFEST			This list of files

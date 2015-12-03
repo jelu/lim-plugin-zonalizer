@@ -8,6 +8,7 @@ WriteMakefile(
     AUTHOR              => q{Jerry Lundström <lundstrom.jerry@gmail.com>},
     VERSION_FROM        => 'lib/Lim/Plugin/Zonalizer.pm',
     ABSTRACT_FROM       => 'lib/Lim/Plugin/Zonalizer.pm',
+    EXE_FILES           => [ 'bin/zonalizer-collector' ],
     (! eval { ExtUtils::MakeMaker->VERSION(6.3002) } ? () :
         (LICENSE => 'perl')
     ),

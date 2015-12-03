@@ -1,41 +1,20 @@
-package Lim::Plugin::Zonalizer::CLI;
+#!/usr/bin/env perl
 
 use common::sense;
 
-use Getopt::Long ();
-use Scalar::Util qw(weaken);
-
-use Lim::Plugin::Zonalizer ();
-
-use base qw(Lim::Component::CLI);
+use Lim::Plugin::Zonalizer::Collector;
 
 =encoding utf8
 
 =head1 NAME
 
-Lim::Plugin::Zonalizer::CLI - CLI class for the zonalizer Lim plugin
-
-=head1 VERSION
-
-See L<Lim::Plugin::Zonalizer> for version.
+zonalizer-collector - Collector that runs Zonemaster in multiple threads.
 
 =cut
 
-our $VERSION = $Lim::Plugin::Zonalizer::VERSION;
+STDOUT->autoflush(1);
 
-=head1 SYNOPSIS
-
-  use Lim::Plugin::Zonalizer;
-
-  # Create a CLI object
-  $cli = Lim::Plugin::Zonalizer->CLI;
-
-=head1 METHODS
-
-These methods are called from the Lim framework and should not be used else
-where.
-
-Please see L<Lim::Plugin::Zonalizer> for full documentation of calls.
+Lim::Plugin::Zonalizer::Collector->new_with_options->run;
 
 =head1 AUTHOR
 
@@ -49,7 +28,7 @@ Please report any bugs or feature requests to L<https://github.com/jelu/lim-plug
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc Lim::Plugin::Zonalizer::CLI
+    perldoc zonalizer-collector
 
 You can also look for information at:
 
@@ -73,8 +52,3 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
-
-=cut
-
-1;    # End of Lim::Plugin::Zonalizer::CLI

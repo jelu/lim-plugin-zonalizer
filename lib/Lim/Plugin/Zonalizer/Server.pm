@@ -16,6 +16,7 @@ use AnyEvent::Handle ();
 use JSON::XS         ();
 use HTTP::Status     ();
 use URI::Escape::XS  qw(uri_escape);
+use AnyEvent::Util   ();
 
 use Zonemaster::Translator ();
 use Zonemaster::Logger::Entry ();
@@ -94,13 +95,18 @@ sub Init {
     $self->{test_ipv6} = 1;
     $self->{allow_ipv4} = 1;
     $self->{allow_ipv6} = 1;
+    $self->{max_ongoing} = 5;
+    $self->{collector} = {
+        exec => 'zonalizer-collector',
+        threads => 5
+    };
 
     #
     # Load configuration
     #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6) ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing) ) {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
             }
@@ -112,6 +118,18 @@ sub Init {
             }
 
             $self->{db_conf} = Lim->Config->{zonalizer}->{db_conf};
+        }
+
+        if ( defined Lim->Config->{zonalizer}->{collector} ) {
+            unless ( ref( Lim->Config->{zonalizer}->{collector} ) eq 'HASH' ) {
+                confess "Configuration for collector is wrong, must be HASH";
+            }
+
+            foreach ( qw(exec config policy sourceaddr threads) ) {
+                if ( defined Lim->Config->{zonalizer}->{collector}->{$_} ) {
+                    $self->{collector}->{$_} = Lim->Config->{zonalizer}->{collector}->{$_};
+                }
+            }
         }
     }
 
@@ -130,6 +148,15 @@ sub Init {
     }
     unless ( $self->{test_ipv4} || $self->{test_ipv6} ) {
         confess 'Configuration error: Must have atleast one of test_ipv4 or test_ipv6 set';
+    }
+    unless ( $self->{max_ongoing} > 0 ) {
+        confess 'Configuration error: max_ongoing must be 1 or greater';
+    }
+    unless ( -x $self->{collector}->{exec} ) {
+        confess 'Configuration error: collector->exec is not an executable';
+    }
+    unless ( $self->{collector}->{threads} > 0 ) {
+        confess 'Configuration error: collector->threads must be 1 or greater';
     }
 
     #
@@ -173,6 +200,12 @@ sub Init {
             }
         }
     });
+
+    #
+    # Start collector
+    #
+
+    $self->StartCollector;
 }
 
 =item Read1
@@ -589,7 +622,7 @@ sub CreateAnalyze {
     weaken( $self );
     $STAT{api}->{requests}++;
 
-    if ( $STAT{analysis}->{ongoing} > 1 ) {
+    if ( $STAT{analysis}->{ongoing} >= $self->{max_ongoing} ) {
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -729,7 +762,7 @@ sub CreateAnalyze {
     my $test = $TEST{$id} = {
         id       => $id,
         fqdn     => $fqdn,
-        status   => STATUS_ANALYZING,
+        status   => STATUS_QUEUED,
         progress => 0,
         created  => time,
         updated  => time,
@@ -748,42 +781,12 @@ sub CreateAnalyze {
         $TEST_SPACE{$id} = $q->{space};
     }
 
-    my $cli;
-    Lim::DEBUG and $self->{logger}->debug( 'open ', join( ' ',
-        '-|:encoding(UTF-8)',
-        'zonemaster-cli',
-        $ipv4 ? '--ipv4' : '--no-ipv4',
-        $ipv6 ? '--ipv6' : '--no-ipv6',
-        qw(--json_stream --level DEBUG),
-        @ns,
-        @ds,
-        $fqdn
-    ) );
-    unless (
-        open( $cli,
-            '-|:encoding(UTF-8)',
-            'zonemaster-cli',
-            $ipv4 ? '--ipv4' : '--no-ipv4',
-            $ipv6 ? '--ipv6' : '--no-ipv6',
-            qw(--json_stream --level DEBUG),
-            @ns,
-            @ds,
-            $fqdn ) )
-    {
-        Lim::ERR and $self->{logger}->error('open: ', $!);
-        $STAT{analysis}->{failed}++;
-        $self->Error( $cb, 'no' );
-        return;
-    }
-
     $STAT{analysis}->{ongoing}++;
 
-    my $json         = JSON::XS->new->utf8;
     my $modules      = 0;
     my $modules_done = 0;
     my $started      = 0;
     my $result_id    = 0;
-    my $handle;
     my $failed = sub {
         $STAT{analysis}->{ongoing}--;
         $STAT{analysis}->{failed}++;
@@ -792,16 +795,12 @@ sub CreateAnalyze {
     my $store = sub {
         $self->StoreAnalyze( $id );
     };
-    $handle = AnyEvent::Handle->new(
-        fh      => $cli,
-        on_read => sub {
-            my ( $handle ) = @_;
 
-            unless ( defined $self ) {
-                return;
-            }
+    $self->{collector}->{analyze}->(
+        sub {
+            my ( $msg ) = @_;
 
-            if ( $handle->destroyed ) {
+            unless ( $msg ) {
                 $test->{progress} = 100;
                 delete $test->{results};
                 if ( defined $failed ) {
@@ -812,119 +811,71 @@ sub CreateAnalyze {
                     $store->();
                     undef $store;
                 }
-                return;
+                return 1;
             }
 
-            my $error;
-            eval {
-                my @msg = $json->incr_parse( $handle->{rbuf} );
-                foreach my $msg ( @msg ) {
-                    unless ( ref( $msg ) eq 'HASH' ) {
-                        die;
-                    }
+            $test->{updated} = time;
+            $test->{status} = STATUS_ANALYZING;
 
-                    $test->{updated} = time;
-
-                    if ( $msg->{level} eq 'DEBUG' || ( $msg->{level} eq 'INFO' && $msg->{tag} eq 'POLICY_DISABLED' ) ) {
-                        if ( !$started && $msg->{tag} eq 'MODULE_VERSION' ) {
-                            $modules++;
-                        }
-                        elsif ( $msg->{tag} eq 'MODULE_END' || $msg->{tag} eq 'POLICY_DISABLED' ) {
-                            $started = 1;
-                            $modules_done++;
-
-                            $test->{progress} = ( $modules_done * 100 ) / $modules;
-
-                            $self->{logger}->debug( 'done ', $modules_done, ' progress ', $test->{progress} );
-                        }
-                    }
-
-                    if ( $msg->{level} eq 'DEBUG' ) {
-                        next;
-                    }
-
-                    if ( $msg->{level} eq 'NOTICE' ) {
-                        $test->{summary}->{notice}++;
-                    }
-                    elsif ( $msg->{level} eq 'WARNING' ) {
-                        $test->{summary}->{warning}++;
-                    }
-                    elsif ( $msg->{level} eq 'ERROR' ) {
-                        $test->{summary}->{error}++;
-                    }
-                    elsif ( $msg->{level} eq 'CRITICAL' ) {
-                        $test->{summary}->{critical}++;
-                    }
-
-                    $msg->{_id} = $result_id++;
-                    push( @{ $test->{results} }, $msg );
+            if ( $msg->{level} eq 'DEBUG' || ( $msg->{level} eq 'INFO' && $msg->{tag} eq 'POLICY_DISABLED' ) ) {
+                if ( !$started && $msg->{tag} eq 'MODULE_VERSION' ) {
+                    $modules++;
                 }
-            };
-            if ( $@ ) {
-                $test->{progress} = 100;
-                delete $test->{results};
-                $handle->destroy;
-                $handle = undef;
-                if ( defined $failed ) {
-                    $failed->();
-                    undef $failed;
+                elsif ( $_->{tag} eq 'MODULE_END' and $_->{args}->{module} eq 'Lim::Plugin::Zonalizer::Collector' ) {
+                    $test->{progress} = 100;
+                    if ( defined $failed ) {
+                        $STAT{analysis}->{ongoing}--;
+                        $STAT{analysis}->{completed}++;
+                        $test->{status} = exists $test->{results} ? STATUS_DONE : STATUS_UNKNOWN;
+                        undef $failed;
+                    }
+                    if ( defined $store ) {
+                        $store->();
+                        undef $store;
+                    }
+                    return 1;
                 }
-                if ( defined $store ) {
-                    $store->();
-                    undef $store;
+                elsif ( $msg->{tag} eq 'MODULE_END' || $msg->{tag} eq 'POLICY_DISABLED' ) {
+                    $started = 1;
+                    $modules_done++;
+
+                    $test->{progress} = ( $modules_done * 100 ) / $modules;
+
+                    $self->{logger}->debug( 'done ', $modules_done, ' progress ', $test->{progress} );
                 }
-                return;
+                else {
+                    $started = 1;
+                }
             }
-            $handle->{rbuf} = '';
+
+            if ( $msg->{level} eq 'DEBUG' ) {
+                next;
+            }
+
+            if ( $msg->{level} eq 'NOTICE' ) {
+                $test->{summary}->{notice}++;
+            }
+            elsif ( $msg->{level} eq 'WARNING' ) {
+                $test->{summary}->{warning}++;
+            }
+            elsif ( $msg->{level} eq 'ERROR' ) {
+                $test->{summary}->{error}++;
+            }
+            elsif ( $msg->{level} eq 'CRITICAL' ) {
+                $test->{summary}->{critical}++;
+            }
+
+            $msg->{_id} = $result_id++;
+            push( @{ $test->{results} }, $msg );
+
+            return;
         },
-        on_eof => sub {
-            unless ( defined $self ) {
-                return;
-            }
-
-            $test->{progress} = 100;
-            if ( defined $failed ) {
-                $STAT{analysis}->{ongoing}--;
-                $STAT{analysis}->{completed}++;
-                $test->{status} = exists $test->{results} ? STATUS_DONE : STATUS_UNKNOWN;
-                undef $failed;
-            }
-            if ( defined $store ) {
-                $store->();
-                undef $store;
-            }
-            if ( $handle->destroyed ) {
-                delete $test->{results};
-                return;
-            }
-
-            $handle->destroy;
-            $handle = undef;
-        },
-        on_error => sub {
-            my ( undef, undef, $message ) = @_;
-
-            unless ( defined $self ) {
-                return;
-            }
-
-            $test->{progress} = 100;
-            delete $test->{results};
-            if ( defined $failed ) {
-                $failed->();
-                undef $failed;
-            }
-            if ( defined $store ) {
-                $store->();
-                undef $store;
-            }
-            if ( $handle->destroyed ) {
-                return;
-            }
-
-            $handle->destroy;
-            $handle = undef;
-        }
+        id => $id,
+        fqdn => $fqdn,
+        ipv4 => $ipv4,
+        ipv6 => $ipv6,
+        $q->{ns} ? ( ns => $q->{ns} ) : (),
+        $q->{ds} ? ( ds => $q->{ds} ) : ()
     );
 
     $self->Successful( $cb, { id => $id } );
@@ -1369,12 +1320,16 @@ sub DeleteAnalyze {
 
 =head1 PRIVATE METHODS
 
+=over 4
+
 =item StoreAnalyze
 
 =cut
 
 sub StoreAnalyze {
     my ( $self, $id ) = @_;
+    my $real_self = $self;
+    weaken( $self );
 
     unless ( defined $id and exists $TEST{ $id } ) {
         return;
@@ -1436,6 +1391,122 @@ sub GetTranslator {
     return ( $TRANSLATOR, $lang );
 }
 
+=item StartCollector
+
+=cut
+
+sub StartCollector {
+    my ( $self ) = @_;
+    my $real_self = $self;
+    weaken( $self );
+
+    my $json = JSON::XS->new->utf8;
+    my ( $read, $write ) = AnyEvent::Util::portable_pipe;
+    my $hdl = AnyEvent::Handle->new( fh => $write );
+    my %id;
+
+    Lim::DEBUG and $self->{logger}->debug( 'open ', join( ' ',
+        $self->{collector}->{exec},
+        $self->{collector}->{config} ? ( '--config', $self->{collector}->{config} ) : (),
+        $self->{collector}->{policy} ? ( '--policy', $self->{collector}->{policy} ) : (),
+        $self->{collector}->{sourceaddr} ? ( '--sourceaddr', $self->{collector}->{sourceaddr} ) : (),
+        $self->{collector}->{threads} ? ( '--threads', $self->{collector}->{threads} ) : ()
+    ) );
+
+    my $cv; $cv = AnyEvent::Util::run_cmd(
+        [
+            $self->{collector}->{exec},
+            $self->{collector}->{config} ? ( '--config', $self->{collector}->{config} ) : (),
+            $self->{collector}->{policy} ? ( '--policy', $self->{collector}->{policy} ) : (),
+            $self->{collector}->{sourceaddr} ? ( '--sourceaddr', $self->{collector}->{sourceaddr} ) : (),
+            $self->{collector}->{threads} ? ( '--threads', $self->{collector}->{threads} ) : (),
+        ],
+        '>' => sub {
+            unless ( defined $self ) {
+                return;
+            }
+
+            my @entries;
+            eval {
+                @entries = $json->incr_parse( @_ );
+                foreach ( @entries ) {
+                    unless ( ref($_) eq 'HASH' and $_->{_id} ) {
+                        die;
+                    }
+
+                    unless ( $id{ $_->{_id} } ) {
+                        Lim::WARN and $self->{logger}->warn('collector received data for unknown id');
+                        next;
+                    }
+
+                    if ( $id{ $_->{_id} }->( $_ ) ) {
+                        delete $id{ $_->{_id} };
+                    }
+                }
+            };
+            if ( $@ ) {
+                $hdl->destroy;
+                $cv->croak( $@ );
+            }
+        },
+        '2>' => sub {
+            unless ( defined $self and scalar @_ and defined $_[0] ) {
+                return;
+            }
+
+            Lim::DEBUG and $self->{logger}->debug('collector: ', @_);
+        },
+        '<' => $read,
+    );
+
+    $cv->cb( sub {
+        unless ( defined $self ) {
+            return;
+        }
+
+        eval {
+            shift->recv;
+        };
+        if ( $@ ) {
+            Lim::ERR and $self->{logger}->error('collector: ', $@);
+        }
+
+        foreach ( values %id ) {
+            $_->();
+        }
+
+        close( $read );
+        $hdl->destroy;
+        $self->StartCollector;
+    } );
+
+    $self->{collector}->{analyze} = sub {
+        my ( $cb, %args ) = @_;
+
+        unless ( defined $self ) {
+            return;
+        }
+
+        unless ( ref($cb) eq 'CODE' and $args{id} and !exists $id{ $args{id} } ) {
+            confess 'huh?';
+        }
+
+        eval {
+            $hdl->push_write( $json->encode( \%args ) . "\n" );
+        };
+        if ( $@ or $hdl->destroyed ) {
+            $cb->();
+            return;
+        }
+
+        $id{ $args{id} } = $cb;
+    };
+
+    return;
+}
+
+=back
+
 =head1 AUTHOR
 
 Jerry Lundström, C<< <lundstrom.jerry@gmail.com> >>
@@ -1448,7 +1519,7 @@ Please report any bugs or feature requests to L<https://github.com/jelu/lim-plug
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc Lim::Plugin::Zonalizer
+    perldoc Lim::Plugin::Zonalizer::Server
 
 You can also look for information at:
 

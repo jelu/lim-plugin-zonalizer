@@ -147,6 +147,36 @@ An integer which determines whether (1) or not (0) to use IPv6 for analyzing if
 not specified by the request.  Will be forced off (0) if IPv6 analyzing is not
 allowed (`allow_ipv6`).
 
+#### max_ongoing
+
+The maximum number of ongoing analysis that can exist at the same time.  If this
+is higher then the number of threads in the collector then the collector will
+queue work.
+
+#### collector
+
+The following parameters are available to configure the collector.
+
+##### exec
+
+The path to the Zonalizer collector (zonalizer-collector).
+
+##### config
+
+Name of configuration file to load.
+
+##### policy
+
+Name of policy file to load.
+
+##### sourceaddr
+
+Local IP address that the test engine should try to send its requests from.
+
+##### threads
+
+Number of threads to start.
+
 ### Configuration example with defaults
 
 ```
@@ -160,6 +190,10 @@ zonalizer:
   allow_ipv6: 1
   test_ipv4: 1
   test_ipv6: 1
+  max_ongoing: 5
+  collector:
+    exec: zonalizer-collector
+    threads: 5
 ```
 
 ## Spaces
