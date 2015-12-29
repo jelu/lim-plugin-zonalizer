@@ -344,7 +344,7 @@ sub ReadAnalysis {
                                 die 'invalid schema';
                             }
                             if ( defined $search_fqdn or defined $search_fqdn2 ) {
-                                unless ( ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                                unless ( ref($keys->[0]->[1]) eq 'ARRAY' ) {
                                     die 'invalid schema';
                                 }
                             }
@@ -358,13 +358,14 @@ sub ReadAnalysis {
                             return;
                         }
 
-                        if ( defined $search_fqdn and $keys->[0]->[0]->[0] ne $search_fqdn ) {
+                        if ( defined $search_fqdn and $keys->[0]->[1]->[0] ne $search_fqdn ) {
                             $next = 0;
                         }
-                        elsif ( defined $search_fqdn2 and $keys->[0]->[0]->[0] ne $search_fqdn2 ) {
+                        elsif ( defined $search_fqdn2 and $keys->[0]->[1]->[0] ne $search_fqdn2 ) {
                             $next = 0;
                         }
-                        elsif ( $args{space} ) {
+
+                        if ( $args{space} ) {
                             unless ( $keys->[0]->[0] eq $args{space} ) {
                                 $next = 0;
                             }
@@ -411,7 +412,7 @@ sub ReadAnalysis {
                             die 'invalid schema';
                         }
                         if ( defined $search_fqdn or defined $search_fqdn2 ) {
-                            unless ( ref($keys->[0]->[0]) eq 'ARRAY' ) {
+                            unless ( ref($keys->[0]->[1]) eq 'ARRAY' ) {
                                 die 'invalid schema';
                             }
                         }
@@ -425,13 +426,14 @@ sub ReadAnalysis {
                         return;
                     }
 
-                    if ( defined $search_fqdn and $keys->[0]->[0]->[0] ne $search_fqdn ) {
+                    if ( defined $search_fqdn and $keys->[0]->[1]->[0] ne $search_fqdn ) {
                         $previous = 0;
                     }
-                    elsif ( defined $search_fqdn2 and $keys->[0]->[0]->[0] ne $search_fqdn2 ) {
+                    elsif ( defined $search_fqdn2 and $keys->[0]->[1]->[0] ne $search_fqdn2 ) {
                         $previous = 0;
                     }
-                    elsif ( $args{space} ) {
+
+                    if ( $args{space} ) {
                         unless ( $keys->[0]->[0] eq $args{space} ) {
                             $previous = 0;
                         }
