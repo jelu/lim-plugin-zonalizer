@@ -218,6 +218,23 @@ will not pollute each other spaces.
 
 ## Undelegated Analyzing
 
+Undelegated analyzing are done by manually giving the nameserver (see `ns`
+object) and delegation signer (see `ds` object) information that will override
+DNS information looked up during analyzing.
+
+Example senario taken from the Zonemaster project:
+
+> An undelegated domain test is a test performed on a domain that may, or may
+> not, be fully published in the DNS. This can be quite useful if one is going
+> to move one's domain from one registrar to another. For example, if you want
+> to move your zone example.com from the nameserver "ns.example.com" to the
+> nameserver "ns.example.org". In this scenario one could perform an undelegated
+> domain test providing the zone (example.com) and the nameserver you are moving
+> to (ns.example.org) BEFORE you move your domain. When the results of the test
+> are colour coded in green one can be fairly certain that the domain's new
+> location is supposed to be replying to queries . However there might still be
+> other problems in the zone data itself that this test is unaware of.
+
 ## Calls
 
 ### GET /zonalizer/1/version
