@@ -177,6 +177,16 @@ Local IP address that the test engine should try to send its requests from.
 
 Number of threads to start.
 
+##### allow_undelegated
+
+An integer which determines whether (1) or not (0) undelegated analysis are
+allowed to be run.
+
+##### force_undelegated
+
+An integer which determines whether (1) or not (0) undelegated information must
+be giving in other to run any analysis.
+
 ### Configuration example with defaults
 
 ```
@@ -194,6 +204,8 @@ zonalizer:
   collector:
     exec: zonalizer-collector
     threads: 5
+  allow_undelegated: 1
+  force_undelegated: 0
 ```
 
 ## Spaces
@@ -219,8 +231,8 @@ will not pollute each other spaces.
 ## Undelegated Analyzing
 
 Undelegated analyzing are done by manually giving the nameserver (see `ns`
-object) and delegation signer (see `ds` object) information that will override
-DNS information looked up during analyzing.
+object) and delegation signer (optional, see `ds` object) information that will
+override DNS information looked up during analyzing.
 
 Example senario taken from the Zonemaster project:
 

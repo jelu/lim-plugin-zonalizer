@@ -7,7 +7,7 @@ use base qw(Exporter Lim::Component);
 our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
   ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH ERR_INVALID_NS
-  ERR_INVALID_DS
+  ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED ERR_UNDELEGATED_FORCED
   STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED STATUS_STOPPED
   STATUS_UNKNOWN
   );
@@ -16,7 +16,8 @@ our %EXPORT_TAGS = (
         qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
            ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
            ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
-           ERR_INVALID_NS ERR_INVALID_DS)
+           ERR_INVALID_NS ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED
+           ERR_UNDELEGATED_FORCED)
     ],
     status => [
         qw(STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
@@ -85,21 +86,27 @@ See API documentation for full description about errors.
 
 =item ERR_INVALID_DS
 
+=item ERR_UNDELEGATED_NOT_ALLOWED
+
+=item ERR_UNDELEGATED_FORCED
+
 =back
 
 =cut
 
-sub ERR_DUPLICATE_ID()       { return 'duplicate_id_found' }
-sub ERR_ID_NOT_FOUND()       { return 'id_not_found' }
-sub ERR_REVISION_MISSMATCH() { return 'revision_missmatch' }
-sub ERR_INVALID_LIMIT()      { return 'invalid_limit' }
-sub ERR_INVALID_SORT_FIELD() { return 'invalid_sort_field' }
-sub ERR_INTERNAL_DATABASE()  { return 'internal_database_error' }
-sub ERR_INVALID_AFTER()      { return 'invalid_after' }
-sub ERR_INVALID_BEFORE()     { return 'invalid_before' }
-sub ERR_SPACE_MISSMATCH()    { return 'space_missmatch' }
-sub ERR_INVALID_NS()         { return 'invalid_ns' }
-sub ERR_INVALID_DS()         { return 'invalid_ds' }
+sub ERR_DUPLICATE_ID()          { return 'duplicate_id_found' }
+sub ERR_ID_NOT_FOUND()          { return 'id_not_found' }
+sub ERR_REVISION_MISSMATCH()    { return 'revision_missmatch' }
+sub ERR_INVALID_LIMIT()         { return 'invalid_limit' }
+sub ERR_INVALID_SORT_FIELD()    { return 'invalid_sort_field' }
+sub ERR_INTERNAL_DATABASE()     { return 'internal_database_error' }
+sub ERR_INVALID_AFTER()         { return 'invalid_after' }
+sub ERR_INVALID_BEFORE()        { return 'invalid_before' }
+sub ERR_SPACE_MISSMATCH()       { return 'space_missmatch' }
+sub ERR_INVALID_NS()            { return 'invalid_ns' }
+sub ERR_INVALID_DS()            { return 'invalid_ds' }
+sub ERR_UNDELEGATED_NOT_ALLOWED { return 'undelegated_not_allowed' }
+sub ERR_UNDELEGATED_FORCED      { return 'undelegated_forced' }
 
 =head1 STATUSES
 

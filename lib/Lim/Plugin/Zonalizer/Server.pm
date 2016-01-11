@@ -100,13 +100,15 @@ sub Init {
         exec => 'zonalizer-collector',
         threads => 5
     };
+    $self->{allow_undelegated} = 1;
+    $self->{force_undelegated} = 0;
 
     #
     # Load configuration
     #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing) ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing allow_undelegated force_undelegated) ) {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
             }
@@ -157,6 +159,9 @@ sub Init {
     }
     unless ( $self->{collector}->{threads} > 0 ) {
         confess 'Configuration error: collector->threads must be 1 or greater';
+    }
+    if ( !$self->{allow_undelegated} and $self->{force_undelegated} ) {
+        confess 'Configuration error: allow_undelegated can not be false when force_undelegated is true';
     }
 
     #
@@ -745,6 +750,30 @@ sub CreateAnalyze {
 
             push( @ds, join( '--ds=', join( ',', $_->{keytag}, $_->{algorithm}, $_->{type}, $_->{digest} ) ) );
         }
+    }
+
+    if ( !$self->{allow_undelegated} and ( scalar @ns or scalar @ds ) ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'undelegated_not_allowed'
+            )
+        );
+        return;
+    }
+
+    if ( $self->{force_undelegated} and !scalar @ns ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'undelegated_forced'
+            )
+        );
+        return;
     }
 
     my $fqdn = $q->{fqdn};
