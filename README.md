@@ -187,6 +187,16 @@ allowed to be run.
 An integer which determines whether (1) or not (0) undelegated information must
 be giving in other to run any analysis.
 
+##### max_undelegated_ns
+
+An integer with the maximum number of `ns` objects that can be given in an
+analysis request.
+
+##### max_undelegated_ds
+
+An integer with the maximum number of `ds` objects that can be given in an
+analysis request.
+
 ### Configuration example with defaults
 
 ```
@@ -206,6 +216,8 @@ zonalizer:
     threads: 5
   allow_undelegated: 1
   force_undelegated: 0
+  max_undelegated_ns: 10
+  max_undelegated_ds: 20
 ```
 
 ## Spaces
@@ -661,11 +673,11 @@ The requested analysis has both IPv4 and IPv6 disabled, one must be enabled.
 
 #### invalid_ns
 
-Any of all of the `ns` objects supplied are invalid.
+Any of all of the `ns` objects supplied are invalid or too many.
 
 #### invalid_ds
 
-Any of all of the `ds` objects supplied are invalid.
+Any of all of the `ds` objects supplied are invalid or too many.
 
 ### HTTP Errors
 

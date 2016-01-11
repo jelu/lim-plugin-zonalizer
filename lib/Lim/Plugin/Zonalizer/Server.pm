@@ -102,13 +102,15 @@ sub Init {
     };
     $self->{allow_undelegated} = 1;
     $self->{force_undelegated} = 0;
+    $self->{max_undelegated_ns} = 10;
+    $self->{max_undelegated_ds} = 10;
 
     #
     # Load configuration
     #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing allow_undelegated force_undelegated) ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing allow_undelegated force_undelegated max_undelegated_ns max_undelegated_ds) ) {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
             }
@@ -162,6 +164,14 @@ sub Init {
     }
     if ( !$self->{allow_undelegated} and $self->{force_undelegated} ) {
         confess 'Configuration error: allow_undelegated can not be false when force_undelegated is true';
+    }
+    if ( $self->{allow_undelegated} ) {
+        unless ( $self->{max_undelegated_ns} > 0 ) {
+            confess 'Configuration error: max_undelegated_ns must be 1 or greater';
+        }
+        unless ( $self->{max_undelegated_ds} > 0 ) {
+            confess 'Configuration error: max_undelegated_ds must be 1 or greater';
+        }
     }
 
     #
@@ -771,6 +781,30 @@ sub CreateAnalyze {
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
                 message => 'undelegated_forced'
+            )
+        );
+        return;
+    }
+
+    if ( scalar @ns > $self->{max_undelegated_ns} ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'invalid_ns'
+            )
+        );
+        return;
+    }
+
+    if ( scalar @ds > $self->{max_undelegated_ds} ) {
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => 'invalid_ds'
             )
         );
         return;
