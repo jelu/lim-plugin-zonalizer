@@ -345,7 +345,7 @@ sub ValidateAnalyze {
             confess 'analyze->' . $_ . ' is not a numeric value';
         }
     }
-    unless ( grep { $analyze->{status} eq $_ } ( STATUS_QUEUED, STATUS_ANALYZING, STATUS_DONE, STATUS_FAILED, STATUS_STOPPED, STATUS_UNKNOWN ) ) {
+    unless ( grep { $analyze->{status} eq $_ } ( STATUS_RESERVED, STATUS_QUEUED, STATUS_ANALYZING, STATUS_DONE, STATUS_FAILED, STATUS_STOPPED, STATUS_UNKNOWN ) ) {
         confess 'analyze->status is invalid';
     }
     if ( exists $analyze->{error} ) {

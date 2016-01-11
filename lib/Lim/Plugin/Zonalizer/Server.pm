@@ -51,6 +51,7 @@ our %STAT    = (
 );
 
 our %TEST;
+our %TEST_DB;
 our %TEST_SPACE;
 
 our $TRANSLATOR;
@@ -211,7 +212,9 @@ sub Init {
 
         foreach (values %TEST) {
             if ($_->{updated} < (time - 600)) {
-                delete $TEST{$_->{id}};
+                delete $TEST{ $_->{id} };
+                delete $TEST_DB{ $_->{id} };
+                delete $TEST_SPACE{ $_->{id} };
             }
         }
     });
@@ -612,12 +615,14 @@ sub DeleteAnalysis {
                 foreach ( keys %TEST_SPACE ) {
                     if ( $TEST_SPACE{ $_ } eq $q->{space} ) {
                         delete $TEST{ $_ };
+                        delete $TEST_DB{ $_ };
                         delete $TEST_SPACE{ $_ };
                     }
                 }
             }
             else {
                 %TEST = ();
+                %TEST_DB = ();
                 %TEST_SPACE = ();
             }
 
@@ -818,14 +823,10 @@ sub CreateAnalyze {
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
 
-    # TODO: Existing ID control
-
-    $self->{logger}->debug('Analyzing ', $fqdn, ' ', $id);
-
     my $test = $TEST{$id} = {
         id       => $id,
         fqdn     => $fqdn,
-        status   => STATUS_QUEUED,
+        status   => STATUS_RESERVED,
         progress => 0,
         created  => time,
         updated  => time,
@@ -846,102 +847,146 @@ sub CreateAnalyze {
 
     $STAT{analysis}->{ongoing}++;
 
-    my $modules      = 0;
-    my $modules_done = 0;
-    my $started      = 0;
-    my $result_id    = 0;
-    my $failed = sub {
-        $STAT{analysis}->{ongoing}--;
-        $STAT{analysis}->{failed}++;
-        $test->{status} = STATUS_FAILED;
-    };
-    my $store = sub {
-        $self->StoreAnalyze( $id );
-    };
+    $self->{logger}->debug('Reserving ', $fqdn, ' ', $id);
 
-    $self->{collector}->{analyze}->(
-        sub {
-            my ( $msg ) = @_;
+    $self->{db}->CreateAnalyze(
+        $q->{space} ? ( space => $q->{space} ) : (),
+        analyze => $test,
+        cb => sub {
+            my ( $object ) = @_;
 
-            unless ( $msg ) {
-                $test->{progress} = 100;
-                delete $test->{results};
-                if ( defined $failed ) {
-                    $failed->();
-                    undef $failed;
-                }
-                if ( defined $store ) {
-                    $store->();
-                    undef $store;
-                }
-                return 1;
+            # uncoverable branch true
+            unless ( defined $self ) {
+
+                # uncoverable statement
+                return;
             }
 
-            $test->{updated} = time;
-            $test->{status} = STATUS_ANALYZING;
+            if ( $@ ) {
+                $self->{logger}->error( 'Unable to store ', $id, ' in database: ', $@ );
 
-            if ( $msg->{level} eq 'DEBUG' || ( $msg->{level} eq 'INFO' && $msg->{tag} eq 'POLICY_DISABLED' ) ) {
-                if ( !$started && $msg->{tag} eq 'MODULE_VERSION' ) {
-                    $modules++;
-                }
-                elsif ( $_->{tag} eq 'MODULE_END' and $_->{args}->{module} eq 'Lim::Plugin::Zonalizer::Collector' ) {
-                    $test->{progress} = 100;
-                    if ( defined $failed ) {
-                        $STAT{analysis}->{ongoing}--;
-                        $STAT{analysis}->{completed}++;
-                        $test->{status} = exists $test->{results} ? STATUS_DONE : STATUS_UNKNOWN;
-                        undef $failed;
+                $STAT{analysis}->{ongoing}--;
+                $STAT{analysis}->{failed}++;
+
+                delete $TEST{ $id };
+                delete $TEST_SPACE{ $id };
+
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_CONFLICT,
+                        message => 'internal_database_error'
+                    )
+                );
+                return;
+            }
+
+            $TEST_DB{ $id } = $object;
+
+            $test->{status} = STATUS_QUEUED;
+
+            $self->{logger}->debug('Analyzing ', $fqdn, ' ', $id);
+
+            my $modules      = 0;
+            my $modules_done = 0;
+            my $started      = 0;
+            my $result_id    = 0;
+            my $failed = sub {
+                $STAT{analysis}->{ongoing}--;
+                $STAT{analysis}->{failed}++;
+                $test->{status} = STATUS_FAILED;
+            };
+            my $store = sub {
+                $self->StoreAnalyze( $id );
+            };
+
+            $self->{collector}->{analyze}->(
+                sub {
+                    my ( $msg ) = @_;
+
+                    unless ( $msg ) {
+                        $test->{progress} = 100;
+                        delete $test->{results};
+                        if ( defined $failed ) {
+                            $failed->();
+                            undef $failed;
+                        }
+                        if ( defined $store ) {
+                            $store->();
+                            undef $store;
+                        }
+                        return 1;
                     }
-                    if ( defined $store ) {
-                        $store->();
-                        undef $store;
+
+                    $test->{updated} = time;
+                    $test->{status} = STATUS_ANALYZING;
+
+                    if ( $msg->{level} eq 'DEBUG' || ( $msg->{level} eq 'INFO' && $msg->{tag} eq 'POLICY_DISABLED' ) ) {
+                        if ( !$started && $msg->{tag} eq 'MODULE_VERSION' ) {
+                            $modules++;
+                        }
+                        elsif ( $_->{tag} eq 'MODULE_END' and $_->{args}->{module} eq 'Lim::Plugin::Zonalizer::Collector' ) {
+                            $test->{progress} = 100;
+                            if ( defined $failed ) {
+                                $STAT{analysis}->{ongoing}--;
+                                $STAT{analysis}->{completed}++;
+                                $test->{status} = exists $test->{results} ? STATUS_DONE : STATUS_UNKNOWN;
+                                undef $failed;
+                            }
+                            if ( defined $store ) {
+                                $store->();
+                                undef $store;
+                            }
+                            return 1;
+                        }
+                        elsif ( $msg->{tag} eq 'MODULE_END' || $msg->{tag} eq 'POLICY_DISABLED' ) {
+                            $started = 1;
+                            $modules_done++;
+
+                            $test->{progress} = ( $modules_done * 100 ) / $modules;
+
+                            $self->{logger}->debug( 'done ', $modules_done, ' progress ', $test->{progress} );
+                        }
+                        else {
+                            $started = 1;
+                        }
                     }
-                    return 1;
-                }
-                elsif ( $msg->{tag} eq 'MODULE_END' || $msg->{tag} eq 'POLICY_DISABLED' ) {
-                    $started = 1;
-                    $modules_done++;
 
-                    $test->{progress} = ( $modules_done * 100 ) / $modules;
+                    if ( $msg->{level} eq 'DEBUG' ) {
+                        next;
+                    }
 
-                    $self->{logger}->debug( 'done ', $modules_done, ' progress ', $test->{progress} );
-                }
-                else {
-                    $started = 1;
-                }
-            }
+                    if ( $msg->{level} eq 'NOTICE' ) {
+                        $test->{summary}->{notice}++;
+                    }
+                    elsif ( $msg->{level} eq 'WARNING' ) {
+                        $test->{summary}->{warning}++;
+                    }
+                    elsif ( $msg->{level} eq 'ERROR' ) {
+                        $test->{summary}->{error}++;
+                    }
+                    elsif ( $msg->{level} eq 'CRITICAL' ) {
+                        $test->{summary}->{critical}++;
+                    }
 
-            if ( $msg->{level} eq 'DEBUG' ) {
-                next;
-            }
+                    $msg->{_id} = $result_id++;
+                    push( @{ $test->{results} }, $msg );
 
-            if ( $msg->{level} eq 'NOTICE' ) {
-                $test->{summary}->{notice}++;
-            }
-            elsif ( $msg->{level} eq 'WARNING' ) {
-                $test->{summary}->{warning}++;
-            }
-            elsif ( $msg->{level} eq 'ERROR' ) {
-                $test->{summary}->{error}++;
-            }
-            elsif ( $msg->{level} eq 'CRITICAL' ) {
-                $test->{summary}->{critical}++;
-            }
+                    return;
+                },
+                id => $id,
+                fqdn => $fqdn,
+                ipv4 => $ipv4,
+                ipv6 => $ipv6,
+                $q->{ns} ? ( ns => $q->{ns} ) : (),
+                $q->{ds} ? ( ds => $q->{ds} ) : ()
+            );
 
-            $msg->{_id} = $result_id++;
-            push( @{ $test->{results} }, $msg );
-
+            $self->Successful( $cb, { id => $id } );
             return;
-        },
-        id => $id,
-        fqdn => $fqdn,
-        ipv4 => $ipv4,
-        ipv6 => $ipv6,
-        $q->{ns} ? ( ns => $q->{ns} ) : (),
-        $q->{ds} ? ( ds => $q->{ds} ) : ()
+        }
     );
-
-    $self->Successful( $cb, { id => $id } );
     return;
 }
 
@@ -1328,6 +1373,7 @@ sub DeleteAnalyze {
         }
 
         delete $TEST{ $q->{id} };
+        delete $TEST_DB{ $q->{id} };
         delete $TEST_SPACE{ $q->{id} };
 
         $self->Successful( $cb );
@@ -1394,15 +1440,25 @@ sub StoreAnalyze {
     my $real_self = $self;
     weaken( $self );
 
-    unless ( defined $id and exists $TEST{ $id } ) {
+    unless ( defined $id ) {
+        $self->{logger}->error( 'called without $id' );
+    }
+    unless ( exists $TEST{ $id } ) {
+        $self->{logger}->error( 'called but $TEST{ $id } does not exist' );
+        return;
+    }
+    unless ( exists $TEST_DB{ $id } ) {
+        $self->{logger}->error( 'called but $TEST_DB{ $id } does not exist' );
         return;
     }
 
     $self->{logger}->debug('Storing ', $id);
 
-    $self->{db}->CreateAnalyze(
-        $TEST_SPACE{ $id } ? ( space => $TEST_SPACE{ $id } ) : (),
-        analyze => $TEST{ $id },
+    $self->{db}->UpdateAnalyze(
+        analyze => {
+            %{ $TEST_DB{ $id } },
+            %{ $TEST{ $id } }
+        },
         cb => sub {
             # uncoverable branch true
             unless ( defined $self ) {
@@ -1416,6 +1472,7 @@ sub StoreAnalyze {
             }
 
             delete $TEST{ $id };
+            delete $TEST_DB{ $id };
             delete $TEST_SPACE{ $id };
         }
     );

@@ -566,6 +566,8 @@ RFC 4034.
 
 ## Analyze Statuses
 
+* `reserved`: indicates that the analyze has been reserved in the database and
+  is ongoing.
 * `queued`: indicates that the analyze has been queued and waiting on a worker
   to start processing it.
 * `analyzing`: indicates that the analyze has been taken up by a worker and its
@@ -693,6 +695,11 @@ invalid.  See `message` for the corresponding API error.
 
 Indicates that the requested id was not found, see `message` for the
 corresponding API error.
+
+#### 409 CONFLICT
+
+Indicates that an id conflict happen when trying to create database objects,
+this is a temporarly error and the request can be retried.
 
 #### 415 UNSUPPORTED MEDIA TYPE
 
