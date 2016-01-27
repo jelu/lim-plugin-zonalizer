@@ -153,6 +153,26 @@ The maximum number of ongoing analysis that can exist at the same time.  If this
 is higher then the number of threads in the collector then the collector will
 queue work.
 
+#### allow_undelegated
+
+An integer which determines whether (1) or not (0) undelegated analysis are
+allowed to be run.
+
+#### force_undelegated
+
+An integer which determines whether (1) or not (0) undelegated information must
+be giving in other to run any analysis.
+
+#### max_undelegated_ns
+
+An integer with the maximum number of `ns` objects that can be given in an
+analysis request.
+
+#### max_undelegated_ds
+
+An integer with the maximum number of `ds` objects that can be given in an
+analysis request.
+
 #### collector
 
 The following parameters are available to configure the collector.
@@ -177,26 +197,6 @@ Local IP address that the test engine should try to send its requests from.
 
 Number of threads to start.
 
-##### allow_undelegated
-
-An integer which determines whether (1) or not (0) undelegated analysis are
-allowed to be run.
-
-##### force_undelegated
-
-An integer which determines whether (1) or not (0) undelegated information must
-be giving in other to run any analysis.
-
-##### max_undelegated_ns
-
-An integer with the maximum number of `ns` objects that can be given in an
-analysis request.
-
-##### max_undelegated_ds
-
-An integer with the maximum number of `ds` objects that can be given in an
-analysis request.
-
 ### Configuration example with defaults
 
 ```
@@ -211,13 +211,13 @@ zonalizer:
   test_ipv4: 1
   test_ipv6: 1
   max_ongoing: 5
-  collector:
-    exec: zonalizer-collector
-    threads: 5
   allow_undelegated: 1
   force_undelegated: 0
   max_undelegated_ns: 10
   max_undelegated_ds: 20
+  collector:
+    exec: zonalizer-collector
+    threads: 5
 ```
 
 ## Spaces
