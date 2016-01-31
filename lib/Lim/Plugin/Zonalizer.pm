@@ -8,6 +8,7 @@ our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
   ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH ERR_INVALID_NS
   ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED ERR_UNDELEGATED_FORCED
+  ERR_META_DATA_NOT_ALLOWED ERR_INVALID_META_DATA
   STATUS_RESERVED STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
   STATUS_STOPPED STATUS_UNKNOWN
   );
@@ -17,7 +18,8 @@ our %EXPORT_TAGS = (
            ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
            ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
            ERR_INVALID_NS ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED
-           ERR_UNDELEGATED_FORCED)
+           ERR_UNDELEGATED_FORCED ERR_META_DATA_NOT_ALLOWED
+           ERR_INVALID_META_DATA)
     ],
     status => [
         qw(STATUS_RESERVED STATUS_QUEUED STATUS_ANALYZING STATUS_DONE
@@ -90,6 +92,10 @@ See API documentation for full description about errors.
 
 =item ERR_UNDELEGATED_FORCED
 
+=item ERR_META_DATA_NOT_ALLOWED
+
+=item ERR_INVALID_META_DATA
+
 =back
 
 =cut
@@ -107,6 +113,8 @@ sub ERR_INVALID_NS()            { return 'invalid_ns' }
 sub ERR_INVALID_DS()            { return 'invalid_ds' }
 sub ERR_UNDELEGATED_NOT_ALLOWED { return 'undelegated_not_allowed' }
 sub ERR_UNDELEGATED_FORCED      { return 'undelegated_forced' }
+sub ERR_META_DATA_NOT_ALLOWED   { return 'meta_data_not_allowed' }
+sub ERR_INVALID_META_DATA       { return 'invalid_meta_data' }
 
 =head1 STATUSES
 
@@ -285,6 +293,10 @@ sub Calls {
                         algorithm => 'string',
                         type => 'string',
                         digest => 'string'
+                    },
+                    meta_data => {
+                        key => 'string',
+                        value => 'string'
                     }
                 },
                 paging => {
@@ -322,6 +334,10 @@ sub Calls {
                     algorithm => 'string',
                     type => 'string',
                     digest => 'string'
+                },
+                meta_data => {
+                    key => 'string',
+                    value => 'string'
                 }
             },
             out => { id   => 'string' }
@@ -374,6 +390,10 @@ sub Calls {
                     algorithm => 'string',
                     type => 'string',
                     digest => 'string'
+                },
+                meta_data => {
+                    key => 'string',
+                    value => 'string'
                 }
             }
         },

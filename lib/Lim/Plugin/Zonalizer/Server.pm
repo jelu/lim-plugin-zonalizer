@@ -106,13 +106,21 @@ sub Init {
     $self->{force_undelegated} = 0;
     $self->{max_undelegated_ns} = 10;
     $self->{max_undelegated_ds} = 10;
+    $self->{allow_meta_data} = 0;
+    $self->{max_meta_data_entries} = 42;
+    $self->{max_meta_data_entry_size} = 512;
 
     #
     # Load configuration
     #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing allow_undelegated force_undelegated max_undelegated_ns max_undelegated_ds) ) {
+        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url
+            lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing
+            allow_undelegated force_undelegated max_undelegated_ns
+            max_undelegated_ds allow_meta_data max_meta_data_entries
+            max_meta_data_entry_size) )
+        {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
             }
@@ -173,6 +181,14 @@ sub Init {
         }
         unless ( $self->{max_undelegated_ds} > 0 ) {
             confess 'Configuration error: max_undelegated_ds must be 1 or greater';
+        }
+    }
+    if ( $self->{allow_meta_data} ) {
+        unless ( $self->{max_meta_data_entries} > 0 ) {
+            confess 'Configuration error: max_meta_data_entries must be 1 or greater';
+        }
+        unless ( $self->{max_meta_data_entry_size} > 0 ) {
+            confess 'Configuration error: max_meta_data_entry_size must be 1 or greater';
         }
     }
 
@@ -522,7 +538,7 @@ sub ReadAnalysis {
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
             foreach ( @_ ) {
-                my ( @ns, @ds );
+                my ( @ns, @ds, @meta_data );
 
                 if ( $_->{ns} ) {
                     foreach my $ns ( @{ $_->{ns} } ) {
@@ -540,6 +556,15 @@ sub ReadAnalysis {
                             algorithm => $ds->{algorithm},
                             type => $ds->{type},
                             digest => $ds->{digest}
+                        } );
+                    }
+                }
+
+                if ( $_->{meta_data} ) {
+                    foreach my $meta_data ( @{ $_->{meta_data} } ) {
+                        push( @meta_data, {
+                            key => $meta_data->{key},
+                            value => $meta_data->{value}
                         } );
                     }
                 }
@@ -565,7 +590,8 @@ sub ReadAnalysis {
                         ipv4 => $_->{ipv4},
                         ipv6 => $_->{ipv6},
                         scalar @ns ? ( ns => \@ns ) : (),
-                        scalar @ds ? ( ds => \@ds ) : ()
+                        scalar @ds ? ( ds => \@ds ) : (),
+                        scalar @meta_data ? ( meta_data => \@meta_data ) : ()
                     }
                 );
             }
@@ -834,6 +860,44 @@ sub CreateAnalyze {
         return;
     }
 
+    if ( $q->{meta_data} ) {
+        unless ( $self->{allow_meta_data} ) {
+            $self->Error(
+                $cb,
+                Lim::Error->new(
+                    module  => $self,
+                    code    => HTTP::Status::HTTP_BAD_REQUEST,
+                    message => 'meta_data_not_allowed'
+                )
+            );
+            return;
+        }
+
+        unless ( ref($q->{meta_data}) eq 'ARRAY' ) {
+            $q->{meta_data} = [ $q->{meta_data} ];
+        }
+
+        my $count = 0;
+        foreach ( @{ $q->{meta_data} } ) {
+            unless ( $count < $self->{max_meta_data_entries}
+                and $_->{key} and $_->{value}
+                and ( length($_->{key}) + length($_->{value}) ) <= $self->{max_meta_data_entry_size} )
+            {
+                $self->Error(
+                    $cb,
+                    Lim::Error->new(
+                        module  => $self,
+                        code    => HTTP::Status::HTTP_BAD_REQUEST,
+                        message => 'invalid_meta_data'
+                    )
+                );
+                return;
+            }
+
+            $count++;
+        }
+    }
+
     my $fqdn = $q->{fqdn};
     $fqdn =~ s/\.$//o;
     $fqdn .= '.';
@@ -858,7 +922,8 @@ sub CreateAnalyze {
         ipv4 => $ipv4,
         ipv6 => $ipv6,
         $q->{ns} ? ( ns => $q->{ns} ) : (),
-        $q->{ds} ? ( ds => $q->{ds} ) : ()
+        $q->{ds} ? ( ds => $q->{ds} ) : (),
+        $q->{meta_data} ? ( meta_data => $q->{meta_data} ) : ()
     };
     if ( $q->{space} ) {
         $TEST_SPACE{$id} = $q->{space};
@@ -1187,7 +1252,7 @@ sub ReadAnalyze {
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
 
-            my ( @ns, @ds );
+            my ( @ns, @ds, @meta_data );
 
             if ( $analyze->{ns} ) {
                 foreach my $ns ( @{ $analyze->{ns} } ) {
@@ -1205,6 +1270,15 @@ sub ReadAnalyze {
                         algorithm => $ds->{algorithm},
                         type => $ds->{type},
                         digest => $ds->{digest}
+                    } );
+                }
+            }
+
+            if ( $analyze->{meta_data} ) {
+                foreach my $meta_data ( @{ $analyze->{meta_data} } ) {
+                    push( @meta_data, {
+                        key => $meta_data->{key},
+                        value => $meta_data->{value}
                     } );
                 }
             }
@@ -1230,7 +1304,8 @@ sub ReadAnalyze {
                     ipv4 => $analyze->{ipv4},
                     ipv6 => $analyze->{ipv6},
                     scalar @ns ? ( ns => \@ns ) : (),
-                    scalar @ds ? ( ds => \@ds ) : ()
+                    scalar @ds ? ( ds => \@ds ) : (),
+                    scalar @meta_data ? ( meta_data => \@meta_data ) : ()
                 }
             );
         }

@@ -173,6 +173,21 @@ analysis request.
 An integer with the maximum number of `ds` objects that can be given in an
 analysis request.
 
+#### allow_meta_data
+
+An integer which determines whether (1) or not (0) meta data is allowed to be
+added to an analysis.
+
+#### max_meta_data_entries
+
+A positive integer with the maximum number of meta data entries that can be
+added to an analysis.
+
+#### max_meta_data_entry_size
+
+A positive integer with the maximum size of a meta data entry, this is both
+`key` and `value` combined.
+
 #### collector
 
 The following parameters are available to configure the collector.
@@ -215,6 +230,9 @@ zonalizer:
   force_undelegated: 0
   max_undelegated_ns: 10
   max_undelegated_ds: 20
+  allow_meta_data: 0
+  max_meta_data_entries: 42
+  max_meta_data_entry_size: 512
   collector:
     exec: zonalizer-collector
     threads: 5
@@ -346,7 +364,7 @@ Delete all analysis.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 * `space`: A string that identifies a unique space for analysis, see Spaces for
   more information.  (optional)
 
-### POST /zonalizer/1/analysis?fqdn=string[&<options...>]
+### POST /zonalizer/1/analysis?fqdn=string[&options...]
 
 Initiate a new analysis for a given zone.  See `analyze` under Objects for
 description of the analyze object.
@@ -362,6 +380,8 @@ description of the analyze object.
   Analyzing for more information.
 * `ds`: An array of delegation signer objects, see `ds` object and Undelegated
   Analyzing for more information.
+* `meta_data`: An array of meta data objects, see `meta_data` object for more
+  information.
 
 ### GET /zonalizer/1/analysis/:id[?results=bool&lang=string&space=string]
 
@@ -470,6 +490,11 @@ The main analyze object which may include all results from Zonemaster.
     ds,
     ds,
     ...
+  ],
+  "meta_data": [
+    meta_data,
+    meta_data,
+    ...
   ]
 }
 ```
@@ -491,9 +516,11 @@ The main analyze object which may include all results from Zonemaster.
 * `ipv4`: If true (1), the analysis ran over IPv4.
 * `ipv6`: If true (1), the analysis ran over IPv6.
 * `ns`: An array of nameserver objects, see `ns` object and Undelegated
-  Analyzing for more information.
+  Analyzing for more information.  (optional)
 * `ds`: An array of delegation signer objects, see `ds` object and Undelegated
-  Analyzing for more information.
+  Analyzing for more information.  (optional)
+* `meta_data`: An array of meta data objects, see `meta_data` under Objects.
+  (optional)
 
 ### error
 
@@ -570,6 +597,15 @@ RFC 4034.
   "algorithm": "string",
   "type": "string",
   "digest": "string"
+}
+```
+
+### meta_data
+
+```
+{
+  "key": "string",
+  "value": "string"
 }
 ```
 
@@ -690,6 +726,14 @@ Any of all of the `ns` objects supplied are invalid or too many.
 
 Any of all of the `ds` objects supplied are invalid or too many.
 
+#### meta_data_not_allowed
+
+Meta data was supplied but is not allowed.
+
+#### invalid_meta_data
+
+Meta data supplied is invalid.
+
 ### HTTP Errors
 
 These are the HTTP status errors returned, additional errors may be returned
@@ -697,8 +741,8 @@ from the framework.
 
 #### 400 BAD REQUEST
 
-Indicates that the requested limit, sort field or FQDN (for a new analyze) is
-invalid.  See `message` for the corresponding API error.
+Indicates that some fields in the request are invalid.  See `message` for the
+corresponding API error.
 
 #### 404 NOT FOUND
 

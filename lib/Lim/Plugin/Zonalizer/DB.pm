@@ -405,6 +405,23 @@ sub ValidateAnalyze {
             $count++;
         }
     }
+    if ( exists $analyze->{meta_data} ) {
+        unless ( ref( $analyze->{meta_data} ) eq 'ARRAY' ) {
+            confess 'analyze->meta_data is not ARRAY';
+        }
+        my $count = 1;
+        foreach my $meta_data ( @{ $analyze->{meta_data} } ) {
+            unless ( ref( $meta_data ) eq 'HASH' ) {
+                confess 'analyze->meta_data['.$count.'] is not HASH';
+            }
+            foreach ( qw(key value) ) {
+                unless ( defined $meta_data->{$_} ) {
+                    confess 'analyze->meta_data['.$count.']->' . $_ . ' is not defined';
+                }
+            }
+            $count++;
+        }
+    }
     return;
 }
 
