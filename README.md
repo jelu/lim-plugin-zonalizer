@@ -263,11 +263,20 @@ Example senario taken from the Zonemaster project:
 
 ### GET /zonalizer/1/version
 
-Get the version of Zonalizer.
+Get the version of Zonalizer, Zonemaster and all Zonemaster test modules.
 
 ```
 {
-  "version": "string"
+  "version": "string",
+  "zonemaster": {
+    "version": "string",
+    "tests": [
+      { "name": "string", "version": "string" },
+      { "name": "string", "version": "string" },
+      { "name": "string", "version": "string" },
+      ...
+    ]
+  }
 }
 ```
 

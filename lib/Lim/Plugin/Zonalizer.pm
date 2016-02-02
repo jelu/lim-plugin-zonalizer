@@ -203,7 +203,16 @@ sub Calls {
 
         ReadVersion => {
             in => { version => 'string' },
-            out => { version => 'string' }
+            out => {
+                version => 'string',
+                zonemaster => {
+                    version => 'string',
+                    tests => {
+                        name => 'string',
+                        version => 'string'
+                    }
+                }
+            }
         },
 
         ReadStatus => {

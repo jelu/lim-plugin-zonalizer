@@ -18,6 +18,7 @@ use HTTP::Status     ();
 use URI::Escape::XS  qw(uri_escape);
 use AnyEvent::Util   ();
 
+use Zonemaster ();
 use Zonemaster::Translator ();
 use Zonemaster::Logger::Entry ();
 use POSIX qw(setlocale LC_MESSAGES);
@@ -306,7 +307,25 @@ sub ReadVersion {
     my ( $self, $cb, $q ) = @_;
     $STAT{api}->{requests}++;
 
-    $self->Successful( $cb, { version => $VERSION } );
+    my @tests = ( {
+        name => 'Basic',
+        version => Zonemaster::Test::Basic->VERSION
+    } );
+
+    foreach ( Zonemaster::Test->modules ) {
+        push( @tests, {
+            name => $_,
+            version => ( 'Zonemaster::Test::' . $_ )->VERSION
+        } );
+    }
+
+    $self->Successful( $cb, {
+        version => $VERSION,
+        zonemaster => {
+            version => Zonemaster->VERSION,
+            tests => \@tests
+        }
+    } );
     return;
 }
 
