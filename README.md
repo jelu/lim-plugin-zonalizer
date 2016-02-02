@@ -323,8 +323,8 @@ The following fields are sortable: `fqdn`, `created` and `updated`.
 * `ongoing`: If true (1), show only ongoing analysis.  Default false (0).
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response.  Default false (0).
-* `lang`: Specify the language to use when generating the `message` in the
-  `result` object and in the `error` object, default en_US.UTF-8.
+* `lang`: Specify the language (cc_CC) to use when generating the `message` in
+  the `result` object and in the `error` object, default en_US.
 * `search`: A string with the "FQDN" to search/filter on.  See Search for more
   information.
 * `space`: A string that identifies a unique space for analysis, see Spaces for
@@ -361,8 +361,8 @@ of the analyze object.
 
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default true (1).
-* `lang`: Specify the language to use when generating the `message` in the
-  `result` object and in the `error` object, default en_US.UTF-8.
+* `lang`: Specify the language (cc_CC) to use when generating the `message` in
+  the `result` object and in the `error` object, default en_US.
 * `space`: A string that identifies a unique space for analysis, see Spaces for
   more information.  (optional)
 
@@ -372,8 +372,8 @@ Get information about an analyze and include a set of the last results.
 See `analyze` under Objects for description of the analyze object.
 
 * `last_results`: An integer with the number of results to include.
-* `lang`: Specify the language to use when generating the `message` in the
-  `result` object and in the `error` object, default en_US.UTF-8.
+* `lang`: Specify the language (cc_CC) to use when generating the `message` in
+  the `result` object and in the `error` object, default en_US.
 * `space`: A string that identifies a unique space for analysis, see Spaces for
   more information.  (optional)
 
