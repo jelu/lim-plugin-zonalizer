@@ -348,6 +348,21 @@ sub ValidateAnalyze {
     unless ( grep { $analyze->{status} eq $_ } ( STATUS_RESERVED, STATUS_QUEUED, STATUS_ANALYZING, STATUS_DONE, STATUS_FAILED, STATUS_STOPPED, STATUS_UNKNOWN ) ) {
         confess 'analyze->status is invalid';
     }
+    if ( exists $analyze->{policy} ) {
+        unless ( ref( $analyze->{policy} ) eq 'HASH' ) {
+            confess 'analyze->policy is not HASH';
+        }
+        foreach ( qw(name display) ) {
+            unless ( defined $analyze->{policy}->{$_} ) {
+                confess 'analyze->policy->' . $_ . ' is not defined';
+            }
+        }
+        foreach ( qw(description) ) {
+            if ( exists $analyze->{policy}->{$_} and !defined $analyze->{policy}->{$_} ) {
+                confess 'analyze->policy->' . $_ . ' is not defined';
+            }
+        }
+    }
     if ( exists $analyze->{error} ) {
         unless ( ref( $analyze->{error} ) eq 'HASH' ) {
             confess 'analyze->error is not HASH';
@@ -355,6 +370,19 @@ sub ValidateAnalyze {
         foreach ( qw(code message) ) {
             unless ( defined $analyze->{error}->{$_} ) {
                 confess 'analyze->error->' . $_ . ' is not defined';
+            }
+        }
+    }
+    if ( exists $analyze->{summary} ) {
+        unless ( ref( $analyze->{summary} ) eq 'HASH' ) {
+            confess 'analyze->summary is not HASH';
+        }
+        foreach ( qw(notice warning error critical) ) {
+            unless ( defined $analyze->{summary}->{$_} ) {
+                confess 'analyze->summary->' . $_ . ' is not defined';
+            }
+            unless ( $analyze->{summary}->{$_} == ( $analyze->{summary}->{$_} + 0 ) ) {
+                confess 'analyze->{summary}->' . $_ . ' is not a numeric value';
             }
         }
     }

@@ -102,6 +102,7 @@ sub Init {
         exec => 'zonalizer-collector',
         threads => 5
     };
+    $self->{collector_policy} = {};
     $self->{allow_undelegated} = 1;
     $self->{force_undelegated} = 0;
     $self->{max_undelegated_ns} = 10;
@@ -128,7 +129,7 @@ sub Init {
 
         if ( defined Lim->Config->{zonalizer}->{db_conf} ) {
             unless ( ref( Lim->Config->{zonalizer}->{db_conf} ) eq 'HASH' ) {
-                confess "Configuration for db_conf is wrong, must be HASH";
+                confess 'Configuration for db_conf is wrong, must be HASH';
             }
 
             $self->{db_conf} = Lim->Config->{zonalizer}->{db_conf};
@@ -136,12 +137,50 @@ sub Init {
 
         if ( defined Lim->Config->{zonalizer}->{collector} ) {
             unless ( ref( Lim->Config->{zonalizer}->{collector} ) eq 'HASH' ) {
-                confess "Configuration for collector is wrong, must be HASH";
+                confess 'Configuration for collector is wrong, must be HASH';
             }
 
             foreach ( qw(exec config policy sourceaddr threads) ) {
                 if ( defined Lim->Config->{zonalizer}->{collector}->{$_} ) {
                     $self->{collector}->{$_} = Lim->Config->{zonalizer}->{collector}->{$_};
+                }
+            }
+
+            if ( defined Lim->Config->{zonalizer}->{collector}->{policies} ) {
+                unless ( ref( Lim->Config->{zonalizer}->{collector}->{policies} ) eq 'ARRAY' ) {
+                    confess 'Configuration for collector->policies is wrong, must be ARRAY';
+                }
+
+                my $count = 1;
+                foreach my $policy ( @{ Lim->Config->{zonalizer}->{collector}->{policies} } ) {
+                    unless ( ref( $policy ) eq 'HASH' ) {
+                        confess 'Configuration for collector->policies['.$count.'] is wrong, must be HASH';
+                    }
+
+                    foreach ( qw(name display policy) ) {
+                        unless ( defined $policy->{$_} ) {
+                            confess 'Configuration for collector->policies['.$count.']->'.$_.' is wrong, must be defined';
+                        }
+                    }
+
+                    foreach ( qw(description exec config sourceaddr threads) ) {
+                        if ( exists $policy->{$_} and !defined $policy->{$_} ) {
+                            confess 'Configuration for collector->policies['.$count.']->'.$_.' is wrong, must be defined';
+                        }
+                        if ( !exists $policy->{$_} and exists $self->{collector}->{$_} ) {
+                            $policy->{$_} = $self->{collector}->{$_};
+                        }
+                    }
+
+                    unless ( $policy->{name} =~ /^[\w-]+/o ) {
+                        confess 'Configuration for collector->policies['.$count.'] is wrong, illegal characters in policy name';
+                    }
+                    if ( exists $self->{collector_policy}->{ $policy->{name} } ) {
+                        confess 'Configuration for collector->policies['.$count.'] is wrong, policy '.$policy->{name}.' already exists';
+                    }
+
+                    $self->{collector_policy}->{ $policy->{name} } = $policy;
+                    $count++;
                 }
             }
         }
@@ -240,7 +279,44 @@ sub Init {
     # Start collector
     #
 
-    $self->StartCollector;
+    my $code; $code = sub {
+        unless ( defined $self ) {
+            return;
+        }
+
+        Lim::DEBUG and $self->{logger}->debug( '(re)starting default collector' );
+
+        $self->{collector}->{analyze} = $self->StartCollector(
+            exec => $self->{collector}->{exec},
+            $self->{collector}->{config} ? ( config => $self->{collector}->{config} ) : (),
+            $self->{collector}->{policy} ? ( policy => $self->{collector}->{policy} ) : (),
+            $self->{collector}->{sourceaddr} ? ( sourceaddr => $self->{collector}->{sourceaddr} ) : (),
+            $self->{collector}->{threads} ? ( threads => $self->{collector}->{threads} ) : (),
+            on_eof => $code
+        );
+    };
+    $code->();
+
+    foreach ( values %{ $self->{collector_policy} } ) {
+        my $policy = $_;
+        my $code; $code = sub {
+            unless ( defined $self ) {
+                return;
+            }
+
+            Lim::DEBUG and $self->{logger}->debug( '(re)starting collector for policy ', $policy->{name} );
+
+            $self->{collector_policy}->{$policy->{name}}->{analyze} = $self->StartCollector(
+                exec => $policy->{exec},
+                $policy->{config} ? ( config => $policy->{config} ) : (),
+                $policy->{policy} ? ( policy => $policy->{policy} ) : (),
+                $policy->{sourceaddr} ? ( sourceaddr => $policy->{sourceaddr} ) : (),
+                $policy->{threads} ? ( threads => $policy->{threads} ) : (),
+                on_eof => $code
+            );
+        };
+        $code->();
+    }
 }
 
 =item Read1
@@ -368,6 +444,7 @@ sub ReadAnalysis {
     $STAT{api}->{requests}++;
 
     if ( exists $q->{search} and ( !defined $q->{search} || $q->{search} !~ /^(?:(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?|\.)|\.(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?))$/o ) ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -574,6 +651,11 @@ sub ReadAnalysis {
                     {
                         id       => $_->{id},
                         fqdn     => $_->{fqdn},
+                        exists $_->{policy} ? ( policy => {
+                            name => $_->{policy}->{name},
+                            display => $_->{policy}->{display},
+                            $_->{policy}->{description} ? ( description => $_->{policy}->{description} ) : ()
+                        } ) : (),
                         url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $_->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
                         status   => $_->{status},
                         progress => $_->{progress},
@@ -688,6 +770,7 @@ sub CreateAnalyze {
     $STAT{api}->{requests}++;
 
     if ( $STAT{analysis}->{ongoing} >= $self->{max_ongoing} ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -699,6 +782,7 @@ sub CreateAnalyze {
         return;
     }
     unless ( $q->{fqdn} =~ /^(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?|\.)$/o ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -710,11 +794,34 @@ sub CreateAnalyze {
         return;
     }
 
+    my $policy;
+    if ( $q->{policy} ) {
+        unless ( exists $self->{collector_policy}->{ $q->{policy} } ) {
+            $STAT{api}->{errors}++;
+            $self->Error(
+                $cb,
+                Lim::Error->new(
+                    module  => $self,
+                    code    => HTTP::Status::HTTP_BAD_REQUEST,
+                    message => ERR_POLICY_NOT_FOUND
+                )
+            );
+            return;
+        }
+
+        $policy = {
+            name => $self->{collector_policy}->{ $q->{policy} }->{name},
+            display => $self->{collector_policy}->{ $q->{policy} }->{display},
+            $self->{collector_policy}->{ $q->{policy} }->{description} ? ( description => $self->{collector_policy}->{ $q->{policy} }->{description} ) : ()
+        };
+    }
+
     my ( $ipv4, $ipv6 ) = ( 0, 0 );
 
     if ( exists $q->{ipv4} ) {
         if ( $q->{ipv4} ) {
             unless ( $self->{allow_ipv4} ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -736,6 +843,7 @@ sub CreateAnalyze {
     if ( exists $q->{ipv6} ) {
         if ( $q->{ipv6} ) {
             unless ( $self->{allow_ipv6} ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -755,6 +863,7 @@ sub CreateAnalyze {
     }
 
     unless ( $ipv4 || $ipv6 ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -774,6 +883,7 @@ sub CreateAnalyze {
 
         foreach ( @{ $q->{ns} } ) {
             if ( !$_->{fqdn} or ( exists $_->{ip} && !$_->{ip} ) ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -797,6 +907,7 @@ sub CreateAnalyze {
 
         foreach ( @{ $q->{ds} } ) {
             unless ( $_->{keytag} and $_->{algorithm} and $_->{type} and $_->{digest} ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -813,6 +924,7 @@ sub CreateAnalyze {
     }
 
     if ( !$self->{allow_undelegated} and ( scalar @ns or scalar @ds ) ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -825,6 +937,7 @@ sub CreateAnalyze {
     }
 
     if ( $self->{force_undelegated} and !scalar @ns ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -837,6 +950,7 @@ sub CreateAnalyze {
     }
 
     if ( scalar @ns > $self->{max_undelegated_ns} ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -849,6 +963,7 @@ sub CreateAnalyze {
     }
 
     if ( scalar @ds > $self->{max_undelegated_ds} ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             Lim::Error->new(
@@ -862,6 +977,7 @@ sub CreateAnalyze {
 
     if ( $q->{meta_data} ) {
         unless ( $self->{allow_meta_data} ) {
+            $STAT{api}->{errors}++;
             $self->Error(
                 $cb,
                 Lim::Error->new(
@@ -883,6 +999,7 @@ sub CreateAnalyze {
                 and $_->{key} and $_->{value}
                 and ( length($_->{key}) + length($_->{value}) ) <= $self->{max_meta_data_entry_size} )
             {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -898,17 +1015,48 @@ sub CreateAnalyze {
         }
     }
 
+    my $collector_analyze = $self->{collector}->{analyze};
+    if ( $q->{policy} ) {
+        $collector_analyze = $self->{collector_policy}->{ $q->{policy} }->{analyze};
+    }
+    unless ( ref($collector_analyze) eq 'CODE' ) {
+        Lim::ERR and $self->{logger}->error( 'Unable to call collector' );
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module => $self,
+                code   => HTTP::Status::HTTP_INTERNAL_SERVER_ERROR
+            )
+        );
+        return;
+    }
+
     my $fqdn = $q->{fqdn};
     $fqdn =~ s/\.$//o;
     $fqdn .= '.';
 
     my $uuid = OSSP::uuid->new;
     $uuid->make( 'v4' );
-    my $id = MIME::Base64::encode_base64url( $uuid->export( "bin" ) );
+    my $id = MIME::Base64::encode_base64url( $uuid->export( 'bin' ) );
+
+    if ( exists $TEST{ $id } ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_CONFLICT,
+                message => ERR_INTERNAL_DATABASE
+            )
+        );
+        return;
+    }
 
     my $test = $TEST{$id} = {
         id       => $id,
         fqdn     => $fqdn,
+        $policy ? ( policy => $policy ) : (),
         status   => STATUS_RESERVED,
         progress => 0,
         created  => time,
@@ -955,6 +1103,7 @@ sub CreateAnalyze {
                 delete $TEST{ $id };
                 delete $TEST_SPACE{ $id };
 
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -970,7 +1119,7 @@ sub CreateAnalyze {
 
             $test->{status} = STATUS_QUEUED;
 
-            $self->{logger}->debug('Analyzing ', $fqdn, ' ', $id);
+            $self->{logger}->debug( 'Analyzing ', $fqdn, ' ', $id, ( $q->{policy} ? ' ' . $q->{policy} : '' ) );
 
             my $modules      = 0;
             my $modules_done = 0;
@@ -985,7 +1134,7 @@ sub CreateAnalyze {
                 $self->StoreAnalyze( $id );
             };
 
-            $self->{collector}->{analyze}->(
+            $collector_analyze->(
                 sub {
                     my ( $msg ) = @_;
 
@@ -1103,6 +1252,7 @@ sub ReadAnalyze {
     my ( $translator, $lang, $error ) = $self->GetTranslator( $q->{lang} );
 
     unless ( $translator and $lang ) {
+        $STAT{api}->{errors}++;
         $self->Error(
             $cb,
             $error ? $error : Lim::Error->new(
@@ -1122,6 +1272,7 @@ sub ReadAnalyze {
             unless ( exists $TEST_SPACE{ $q->{id} }
                 and $TEST_SPACE{ $q->{id} } eq $q->{space} )
             {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -1135,6 +1286,7 @@ sub ReadAnalyze {
         }
         else {
             if ( exists $TEST_SPACE{ $q->{id} } ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -1288,6 +1440,11 @@ sub ReadAnalyze {
                 {
                     id       => $analyze->{id},
                     fqdn     => $analyze->{fqdn},
+                    exists $analyze->{policy} ? ( policy => {
+                        name => $analyze->{policy}->{name},
+                        display => $analyze->{policy}->{display},
+                        $analyze->{policy}->{description} ? ( description => $analyze->{policy}->{description} ) : ()
+                    } ) : (),
                     url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $analyze->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
                     status   => $analyze->{status},
                     progress => $analyze->{progress},
@@ -1332,6 +1489,7 @@ sub ReadAnalyzeStatus {
             unless ( exists $TEST_SPACE{ $q->{id} }
                 and $TEST_SPACE{ $q->{id} } eq $q->{space} )
             {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -1345,6 +1503,7 @@ sub ReadAnalyzeStatus {
         }
         else {
             if ( exists $TEST_SPACE{ $q->{id} } ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -1441,6 +1600,7 @@ sub DeleteAnalyze {
             unless ( exists $TEST_SPACE{ $q->{id} }
                 and $TEST_SPACE{ $q->{id} } eq $q->{space} )
             {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -1454,6 +1614,7 @@ sub DeleteAnalyze {
         }
         else {
             if ( exists $TEST_SPACE{ $q->{id} } ) {
+                $STAT{api}->{errors}++;
                 $self->Error(
                     $cb,
                     Lim::Error->new(
@@ -1516,6 +1677,61 @@ sub DeleteAnalyze {
             $self->Successful( $cb );
         }
     );
+    return;
+}
+
+=item ReadPolicies
+
+=cut
+
+sub ReadPolicies {
+    my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
+    $STAT{api}->{requests}++;
+
+    my @policies;
+
+    foreach ( values %{ $self->{collector_policy} } ) {
+        push( @policies, {
+            name => $_->{name},
+            display => $_->{display},
+            $_->{description} ? ( description => $_->{description} ) : ()
+        } );
+    }
+
+    $self->Successful($cb, { policies => \@policies } );
+    return;
+}
+
+=item ReadPolicy
+
+=cut
+
+sub ReadPolicy {
+    my ( $self, $cb, $q ) = @_;
+    my $real_self = $self;
+    weaken( $self );
+    $STAT{api}->{requests}++;
+
+    if ( $q->{name} and !exists $self->{collector_policy}->{ $q->{name} } ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_POLICY_NOT_FOUND
+            )
+        );
+        return;
+    }
+
+    $self->Successful($cb, {
+        name => $self->{collector_policy}->{ $q->{name} }->{name},
+        display => $self->{collector_policy}->{ $q->{name} }->{display},
+        $self->{collector_policy}->{ $q->{name} }->{description} ? ( description => $self->{collector_policy}->{ $q->{name} }->{description} ) : ()
+    });
     return;
 }
 
@@ -1610,9 +1826,16 @@ sub GetTranslator {
 =cut
 
 sub StartCollector {
-    my ( $self ) = @_;
+    my ( $self, %args ) = @_;
     my $real_self = $self;
     weaken( $self );
+
+    unless ( defined $args{exec} ) {
+        confess 'exec not defined';
+    }
+    unless ( ref( $args{on_eof} ) eq 'CODE' ) {
+        confess 'on_eof is not CODE';
+    }
 
     my $json = JSON::XS->new->utf8;
     my ( $read, $write ) = AnyEvent::Util::portable_pipe;
@@ -1620,20 +1843,20 @@ sub StartCollector {
     my %id;
 
     Lim::DEBUG and $self->{logger}->debug( 'open ', join( ' ',
-        $self->{collector}->{exec},
-        $self->{collector}->{config} ? ( '--config', $self->{collector}->{config} ) : (),
-        $self->{collector}->{policy} ? ( '--policy', $self->{collector}->{policy} ) : (),
-        $self->{collector}->{sourceaddr} ? ( '--sourceaddr', $self->{collector}->{sourceaddr} ) : (),
-        $self->{collector}->{threads} ? ( '--threads', $self->{collector}->{threads} ) : ()
+        $args{exec},
+        $args{config} ? ( '--config', $args{config} ) : (),
+        $args{policy} ? ( '--policy', $args{policy} ) : (),
+        $args{sourceaddr} ? ( '--sourceaddr', $args{sourceaddr} ) : (),
+        $args{threads} ? ( '--threads', $args{threads} ) : ()
     ) );
 
     my $cv; $cv = AnyEvent::Util::run_cmd(
         [
-            $self->{collector}->{exec},
-            $self->{collector}->{config} ? ( '--config', $self->{collector}->{config} ) : (),
-            $self->{collector}->{policy} ? ( '--policy', $self->{collector}->{policy} ) : (),
-            $self->{collector}->{sourceaddr} ? ( '--sourceaddr', $self->{collector}->{sourceaddr} ) : (),
-            $self->{collector}->{threads} ? ( '--threads', $self->{collector}->{threads} ) : (),
+            $args{exec},
+            $args{config} ? ( '--config', $args{config} ) : (),
+            $args{policy} ? ( '--policy', $args{policy} ) : (),
+            $args{sourceaddr} ? ( '--sourceaddr', $args{sourceaddr} ) : (),
+            $args{threads} ? ( '--threads', $args{threads} ) : (),
         ],
         '>' => sub {
             unless ( defined $self ) {
@@ -1691,10 +1914,10 @@ sub StartCollector {
 
         close( $read );
         $hdl->destroy;
-        $self->StartCollector;
+        $args{on_eof}->();
     } );
 
-    $self->{collector}->{analyze} = sub {
+    return sub {
         my ( $cb, %args ) = @_;
 
         unless ( defined $self ) {
@@ -1702,7 +1925,7 @@ sub StartCollector {
         }
 
         unless ( ref($cb) eq 'CODE' and $args{id} and !exists $id{ $args{id} } ) {
-            confess 'huh?';
+            confess 'collector->analyze called incorrectly';
         }
 
         eval {
@@ -1715,8 +1938,6 @@ sub StartCollector {
 
         $id{ $args{id} } = $cb;
     };
-
-    return;
 }
 
 =back

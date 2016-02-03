@@ -198,11 +198,11 @@ The path to the Zonalizer collector (zonalizer-collector).
 
 ##### config
 
-Name of configuration file to load.
+Path to the Zonemaster configuration file to use.
 
 ##### policy
 
-Name of policy file to load.
+Path to the Zonemaster policy file to use.
 
 ##### sourceaddr
 
@@ -211,6 +211,37 @@ Local IP address that the test engine should try to send its requests from.
 ##### threads
 
 Number of threads to start.
+
+##### policies
+
+An array of different policies that can be used, each policy starts its own
+collector. For the optional options that are not given, if they are specified in
+the global collector configuration then that value will be used.
+
+Per hash in array the following options can be used:
+
+* `name`: An unique name for the policy, must match Perl regexp [\w-]+.
+* `display`: A display friendly name for the policy.
+* `description`: A description what the policy would be used for.  (optional)
+* `exec`: The path to the Zonalizer collector (zonalizer-collector).  (optional)
+* `config`: Path to the Zonemaster configuration file to use.  (optional)
+* `policy`: Path to the Zonemaster policy file to use.
+* `sourceaddr`: Local IP address that the test engine should try to send its
+  requests from.  (optional)
+* `threads`: Number of threads to start.  (optional)
+
+Example configuration:
+
+```
+---
+zonalizer:
+  collector:
+    policies:
+      - name: iana
+        display: IANA Policy
+        description: A policy specific for TLDs
+        policy: /usr/share/perl5/auto/share/dist/Zonemaster/iana-profile.json
+```
 
 ### Configuration example with defaults
 
@@ -370,6 +401,7 @@ Initiate a new analysis for a given zone.  See `analyze` under Objects for
 description of the analyze object.
 
 * `fqdn`: A string with the FQDN to analyze.  (required)
+* `policy`: The policy to use for the analyze.  (optional)
 * `ipv4`: If true (1), run the analysis over IPv4.  If false (0), do not run
   the analysis over IPv4.  (optional)
 * `ipv6`: If true (1), run the analysis over IPv6.  If false (0), do not run
@@ -388,6 +420,7 @@ description of the analyze object.
 Get information about an analyze.  See `analyze` under Objects for description
 of the analyze object.
 
+* `id`: The ID of the analyze.
 * `results`: If true (1), include `results` in the `analyze` objects in the
   response. Default true (1).
 * `lang`: Specify the language (cc_CC) to use when generating the `message` in
@@ -400,6 +433,7 @@ of the analyze object.
 Get information about an analyze and include a set of the last results.
 See `analyze` under Objects for description of the analyze object.
 
+* `id`: The ID of the analyze.
 * `last_results`: An integer with the number of results to include.
 * `lang`: Specify the language (cc_CC) to use when generating the `message` in
   the `result` object and in the `error` object, default en_US.
@@ -410,6 +444,7 @@ See `analyze` under Objects for description of the analyze object.
 
 Only get status information about an analyze, this call is optimal for polling.
 
+* `id`: The ID of the analyze.
 * `space`: A string that identifies a unique space for analysis, see Spaces for
   more information.  (optional)
 
@@ -431,8 +466,32 @@ Returns the following:
 
 Delete an analyze.  Returns HTTP Status 2xx on success and 4xx/5xx on error.
 
+* `id`: The ID of the analyze.
 * `space`: A string that identifies a unique space for analysis, see Spaces for
   more information.  (optional)
+
+### GET /zonalizer/1/policies
+
+Get a list of all policies that are configured. See `policy` under Objects for
+description of the policy object.
+
+```
+{
+  "policies": [
+    policy,
+    policy,
+    policy,
+    ...
+  ]
+}
+```
+
+### GET /zonalizer/1/policy/:name
+
+Get information about a policy. See `policy` under Objects for description of
+the policy object.
+
+* `name`: The name of the policy.
 
 ## Search
 
@@ -462,6 +521,7 @@ The main analyze object which may include all results from Zonemaster.
 {
   "id": "uuid",
   "fqdn": "string",
+  "policy": policy,
   "url": "href",
   "status": "string",
   "error": error,
@@ -501,6 +561,8 @@ The main analyze object which may include all results from Zonemaster.
 
 * `id`: The UUID of the analyze.
 * `fqdn`: The FQDN of the analyze.
+* `policy`: The policy used for the analyze, see `policy` under Objects.
+  (optional)
 * `url`: The URL to this object.
 * `status`: The status of the check, see Check Statuses.
 * `error`: An object describing an error, see `error` under Objects.  (optional)
@@ -588,7 +650,7 @@ A nameserver object that is used for undelegated analysis.
 A delegation signer records that is used for undelegated analysis.  The four
 pieces of data should be in the same format they would have in a zone file.
 
-For a desciption of the object properties below please see section 5 in
+For a description of the object properties below please see section 5 in
 RFC 4034.
 
 ```
@@ -602,12 +664,35 @@ RFC 4034.
 
 ### meta_data
 
+A meta data object. The number of object that can exist per analyze is determend
+by `max_meta_data_entries` and the total length of the `key` and `value`
+together is determend by `max_meta_data_entry_size`.
+
 ```
 {
   "key": "string",
   "value": "string"
 }
 ```
+
+* `key`: A string with the key of the meta data.
+* `value`: A string with the value of the meta data.
+
+### policy
+
+A policy object that can describe what the policy is for.
+
+```
+{
+  "name": "string",
+  "display": "string",
+  "description": "string"
+}
+```
+
+* `name`: An unique name of the policy.
+* `display`: A display friendly name of the policy.
+* `description`: A description what the policy would be used for.  (optional)
 
 ## Analyze Statuses
 
@@ -733,6 +818,10 @@ Meta data was supplied but is not allowed.
 #### invalid_meta_data
 
 Meta data supplied is invalid.
+
+#### policy_not_found
+
+The requested policy was not found.
 
 ### HTTP Errors
 

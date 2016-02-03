@@ -8,7 +8,7 @@ our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
   ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH ERR_INVALID_NS
   ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED ERR_UNDELEGATED_FORCED
-  ERR_META_DATA_NOT_ALLOWED ERR_INVALID_META_DATA
+  ERR_META_DATA_NOT_ALLOWED ERR_INVALID_META_DATA ERR_POLICY_NOT_FOUND
   STATUS_RESERVED STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
   STATUS_STOPPED STATUS_UNKNOWN
   );
@@ -19,7 +19,7 @@ our %EXPORT_TAGS = (
            ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
            ERR_INVALID_NS ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED
            ERR_UNDELEGATED_FORCED ERR_META_DATA_NOT_ALLOWED
-           ERR_INVALID_META_DATA)
+           ERR_INVALID_META_DATA ERR_POLICY_NOT_FOUND)
     ],
     status => [
         qw(STATUS_RESERVED STATUS_QUEUED STATUS_ANALYZING STATUS_DONE
@@ -96,6 +96,8 @@ See API documentation for full description about errors.
 
 =item ERR_INVALID_META_DATA
 
+=item ERR_POLICY_NOT_FOUND
+
 =back
 
 =cut
@@ -115,6 +117,7 @@ sub ERR_UNDELEGATED_NOT_ALLOWED { return 'undelegated_not_allowed' }
 sub ERR_UNDELEGATED_FORCED      { return 'undelegated_forced' }
 sub ERR_META_DATA_NOT_ALLOWED   { return 'meta_data_not_allowed' }
 sub ERR_INVALID_META_DATA       { return 'invalid_meta_data' }
+sub ERR_POLICY_NOT_FOUND        { return 'policy_not_found' }
 
 =head1 STATUSES
 
@@ -191,7 +194,9 @@ sub Calls {
                 'status => ReadStatus version=1',
                 'analysis => ReadAnalysis version=1',
                 'analysis/id=[\w-]+ => ReadAnalyze version=1',
-                'analysis/id=[\w-]+/status => ReadAnalyzeStatus version=1'
+                'analysis/id=[\w-]+/status => ReadAnalyzeStatus version=1',
+                'policies => ReadPolicies version=1',
+                'policies/name=[\w-]+ => ReadPolicy version=1'
             ]
         },
         Create1 => {
@@ -258,6 +263,11 @@ sub Calls {
                     id       => 'string',
                     url      => 'string',
                     fqdn     => 'string',
+                    policy => {
+                        name => 'string',
+                        display => 'string',
+                        description => 'string optional'
+                    },
                     status   => 'string',
                     error    => {
                         code    => 'string',
@@ -323,6 +333,7 @@ sub Calls {
                 version => 'integer',
                 space     => 'string optional',
                 fqdn => 'string',
+                policy   => 'string optional',
                 ipv4 => 'integer optional',
                 ipv6 => 'integer optional',
                 ns => {
@@ -355,6 +366,11 @@ sub Calls {
                 id       => 'string',
                 url      => 'string',
                 fqdn     => 'string',
+                policy => {
+                    name => 'string',
+                    display => 'string',
+                    description => 'string optional'
+                },
                 status   => 'string',
                 error    => {
                     code    => 'string',
@@ -414,6 +430,30 @@ sub Calls {
                 version => 'integer',
                 id => 'string',
                 space     => 'string optional',
+            }
+        },
+
+        ReadPolicies => {
+            in => {
+                version => 'integer'
+            },
+            out => {
+                policies => {
+                    name => 'string',
+                    display => 'string',
+                    description => 'string optional'
+                }
+            }
+        },
+        ReadPolicy => {
+            in => {
+                version => 'integer',
+                name => 'string'
+            },
+            out => {
+                name => 'string',
+                display => 'string',
+                description => 'string optional'
             }
         }
     };
