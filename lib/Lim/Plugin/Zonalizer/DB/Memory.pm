@@ -6,7 +6,7 @@ use common::sense;
 use Carp;
 use Scalar::Util qw(weaken);
 
-use OSSP::uuid ();
+use Data::UUID ();
 use Lim::Plugin::Zonalizer qw(:err);
 use URI::Escape::XS qw(uri_escape);
 use Clone qw(clone);
@@ -278,10 +278,8 @@ sub CreateAnalyze {
         return;
     }
 
-    my $uuid = OSSP::uuid->new;
-    $uuid->make( 'v4' );
     my $analyze = clone $args{analyze};
-    $analyze->{_rev} = $uuid->export( 'str' );
+    $analyze->{_rev} = Data::UUID->new->create_str;
 
     push( @{ $self->{space}->{$space}->{analysis} }, $analyze );
     $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} } = $analyze;
@@ -366,9 +364,7 @@ sub UpdateAnalyze {
     foreach ( keys %{ $args{analyze} } ) {
         $analyze->{$_} = $args{analyze}->{$_};
     }
-    my $uuid = OSSP::uuid->new;
-    $uuid->make( 'v4' );
-    $analyze->{_rev} = $uuid->export( 'str' );
+    $analyze->{_rev} = Data::UUID->new->create_str;
 
     $args{cb}->( clone $analyze );
     return;

@@ -28,6 +28,8 @@ WriteMakefile(
             'JSON' => 0,
             'HTTP::Status' => 0,
             'JSON::XS' => 0,
+            'Zonemaster' => 0,
+            'Net::LDNS' => 0,
         },
         PREREQ_PM => {
             'common::sense' => 3,
@@ -42,6 +44,8 @@ WriteMakefile(
             'JSON' => 0,
             'HTTP::Status' => 0,
             'JSON::XS' => 0,
+            'Zonemaster' => 0,
+            'Net::LDNS' => 0,
         }
     ) : (
         PREREQ_PM => {
@@ -58,6 +62,8 @@ WriteMakefile(
             'JSON' => 0,
             'HTTP::Status' => 0,
             'JSON::XS' => 0,
+            'Zonemaster' => 0,
+            'Net::LDNS' => 0,
         }
     )),
     (! eval { ExtUtils::MakeMaker->VERSION(6.46) } ? () :
