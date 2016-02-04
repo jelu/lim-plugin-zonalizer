@@ -799,7 +799,7 @@ The requested analysis over IPv4 is not allowed.
 
 The requested analysis over IPv6 is not allowed.
 
-#### no_ip_protocol_selected
+#### no_ip_protocol
 
 The requested analysis has both IPv4 and IPv6 disabled, one must be enabled.
 
@@ -810,6 +810,14 @@ Any of all of the `ns` objects supplied are invalid or too many.
 #### invalid_ds
 
 Any of all of the `ds` objects supplied are invalid or too many.
+
+#### undelegated_not_allowed
+
+An undelegated analysis was requested but is not allowed.
+
+#### undelegated_forced
+
+An analysis was requested without delegation information which must be supplied.
 
 #### meta_data_not_allowed
 

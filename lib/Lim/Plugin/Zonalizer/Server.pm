@@ -450,7 +450,7 @@ sub ReadAnalysis {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'invalid_fqdn'
+                message => ERR_INVALID_FQDN
             )
         );
         return;
@@ -776,7 +776,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_SERVICE_UNAVAILABLE,
-                message => 'queue_full'
+                message => ERR_QUEUE_FULL
             )
         );
         return;
@@ -788,7 +788,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'invalid_fqdn'
+                message => ERR_INVALID_FQDN
             )
         );
         return;
@@ -827,7 +827,7 @@ sub CreateAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_BAD_REQUEST,
-                        message => 'ipv4_not_allowed'
+                        message => ERR_IPV4_NOT_ALLOWED
                     )
                 );
                 return;
@@ -849,7 +849,7 @@ sub CreateAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_BAD_REQUEST,
-                        message => 'ipv6_not_allowed'
+                        message => ERR_IPV6_NOT_ALLOWED
                     )
                 );
                 return;
@@ -869,7 +869,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'no_ip_protocol_selected'
+                message => ERR_NO_IP_PROTOCOL
             )
         );
         return;
@@ -889,7 +889,7 @@ sub CreateAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_BAD_REQUEST,
-                        message => 'invalid_ns'
+                        message => ERR_INVALID_NS
                     )
                 );
                 return;
@@ -913,7 +913,7 @@ sub CreateAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_BAD_REQUEST,
-                        message => 'invalid_ds'
+                        message => ERR_INVALID_DS
                     )
                 );
                 return;
@@ -930,7 +930,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'undelegated_not_allowed'
+                message => ERR_UNDELEGATED_NOT_ALLOWED
             )
         );
         return;
@@ -943,7 +943,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'undelegated_forced'
+                message => ERR_UNDELEGATED_FORCED
             )
         );
         return;
@@ -956,7 +956,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'invalid_ns'
+                message => ERR_INVALID_NS
             )
         );
         return;
@@ -969,7 +969,7 @@ sub CreateAnalyze {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_BAD_REQUEST,
-                message => 'invalid_ds'
+                message => ERR_INVALID_DS
             )
         );
         return;
@@ -983,7 +983,7 @@ sub CreateAnalyze {
                 Lim::Error->new(
                     module  => $self,
                     code    => HTTP::Status::HTTP_BAD_REQUEST,
-                    message => 'meta_data_not_allowed'
+                    message => ERR_META_DATA_NOT_ALLOWED
                 )
             );
             return;
@@ -1005,7 +1005,7 @@ sub CreateAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_BAD_REQUEST,
-                        message => 'invalid_meta_data'
+                        message => ERR_INVALID_META_DATA
                     )
                 );
                 return;
@@ -1109,7 +1109,7 @@ sub CreateAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_CONFLICT,
-                        message => 'internal_database_error'
+                        message => ERR_INTERNAL_DATABASE
                     )
                 );
                 return;
@@ -1278,7 +1278,7 @@ sub ReadAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_NOT_FOUND,
-                        message => 'id_not_found'
+                        message => ERR_ID_NOT_FOUND
                     )
                 );
                 return;
@@ -1292,7 +1292,7 @@ sub ReadAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_NOT_FOUND,
-                        message => 'id_not_found'
+                        message => ERR_ID_NOT_FOUND
                     )
                 );
                 return;
@@ -1495,7 +1495,7 @@ sub ReadAnalyzeStatus {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_NOT_FOUND,
-                        message => 'id_not_found'
+                        message => ERR_ID_NOT_FOUND
                     )
                 );
                 return;
@@ -1509,7 +1509,7 @@ sub ReadAnalyzeStatus {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_NOT_FOUND,
-                        message => 'id_not_found'
+                        message => ERR_ID_NOT_FOUND
                     )
                 );
                 return;
@@ -1606,7 +1606,7 @@ sub DeleteAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_NOT_FOUND,
-                        message => 'id_not_found'
+                        message => ERR_ID_NOT_FOUND
                     )
                 );
                 return;
@@ -1620,7 +1620,7 @@ sub DeleteAnalyze {
                     Lim::Error->new(
                         module  => $self,
                         code    => HTTP::Status::HTTP_NOT_FOUND,
-                        message => 'id_not_found'
+                        message => ERR_ID_NOT_FOUND
                     )
                 );
                 return;
@@ -1811,7 +1811,7 @@ sub GetTranslator {
             Lim::Error->new(
                 module  => $self,
                 code    => HTTP::Status::HTTP_UNSUPPORTED_MEDIA_TYPE,
-                message => 'invalid_lang'
+                message => ERR_INVALID_LANG
             )
         );
     }
