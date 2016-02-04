@@ -13,21 +13,21 @@ our @EXPORT_OK = qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
   ERR_NO_IP_PROTOCOL ERR_INVALID_LANG
   STATUS_RESERVED STATUS_QUEUED STATUS_ANALYZING STATUS_DONE STATUS_FAILED
   STATUS_STOPPED STATUS_UNKNOWN
-  );
+);
 our %EXPORT_TAGS = (
     err => [
         qw(ERR_DUPLICATE_ID ERR_ID_NOT_FOUND ERR_REVISION_MISSMATCH
-           ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
-           ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
-           ERR_INVALID_NS ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED
-           ERR_UNDELEGATED_FORCED ERR_META_DATA_NOT_ALLOWED
-           ERR_INVALID_META_DATA ERR_POLICY_NOT_FOUND ERR_INVALID_FQDN
-           ERR_QUEUE_FULL ERR_IPV4_NOT_ALLOWED ERR_IPV6_NOT_ALLOWED
-           ERR_NO_IP_PROTOCOL ERR_INVALID_LANG)
+          ERR_INVALID_LIMIT ERR_INVALID_SORT_FIELD ERR_INTERNAL_DATABASE
+          ERR_INVALID_AFTER ERR_INVALID_BEFORE ERR_SPACE_MISSMATCH
+          ERR_INVALID_NS ERR_INVALID_DS ERR_UNDELEGATED_NOT_ALLOWED
+          ERR_UNDELEGATED_FORCED ERR_META_DATA_NOT_ALLOWED
+          ERR_INVALID_META_DATA ERR_POLICY_NOT_FOUND ERR_INVALID_FQDN
+          ERR_QUEUE_FULL ERR_IPV4_NOT_ALLOWED ERR_IPV6_NOT_ALLOWED
+          ERR_NO_IP_PROTOCOL ERR_INVALID_LANG)
     ],
     status => [
         qw(STATUS_RESERVED STATUS_QUEUED STATUS_ANALYZING STATUS_DONE
-           STATUS_FAILED STATUS_STOPPED STATUS_UNKNOWN)
+          STATUS_FAILED STATUS_STOPPED STATUS_UNKNOWN)
     ]
 );
 
@@ -221,14 +221,8 @@ sub Calls {
                 'policies/name=[\w-]+ => ReadPolicy version=1'
             ]
         },
-        Create1 => {
-            uri_map => [
-                'analysis => CreateAnalyze version=1'
-            ]
-        },
-        Update1 => {
-            uri_map => []
-        },
+        Create1 => { uri_map => [ 'analysis => CreateAnalyze version=1' ] },
+        Update1 => { uri_map => [] },
         Delete1 => {
             uri_map => [
                 'analysis => DeleteAnalysis version=1',
@@ -239,11 +233,11 @@ sub Calls {
         ReadVersion => {
             in => { version => 'string' },
             out => {
-                version => 'string',
+                version    => 'string',
                 zonemaster => {
                     version => 'string',
-                    tests => {
-                        name => 'string',
+                    tests   => {
+                        name    => 'string',
                         version => 'string'
                     }
                 }
@@ -255,12 +249,12 @@ sub Calls {
             out => {
                 api => {
                     requests => 'integer',
-                    errors => 'integer'
+                    errors   => 'integer'
                 },
                 analysis => {
-                    ongoing => 'integer',
+                    ongoing   => 'integer',
                     completed => 'integer',
-                    failed => 'integer'
+                    failed    => 'integer'
                 }
             }
         },
@@ -282,16 +276,16 @@ sub Calls {
             },
             out => {
                 analysis => {
-                    id       => 'string',
-                    url      => 'string',
-                    fqdn     => 'string',
+                    id     => 'string',
+                    url    => 'string',
+                    fqdn   => 'string',
                     policy => {
-                        name => 'string',
-                        display => 'string',
+                        name        => 'string',
+                        display     => 'string',
                         description => 'string optional'
                     },
-                    status   => 'string',
-                    error    => {
+                    status => 'string',
+                    error  => {
                         code    => 'string',
                         message => 'string'
                     },
@@ -299,35 +293,35 @@ sub Calls {
                     created  => 'integer',
                     updated  => 'integer',
                     results  => {
-                        _id => 'integer',
-                        args => { '' => 'swallow' },
-                        level => 'string',
-                        module => 'string',
-                        tag => 'string',
+                        _id       => 'integer',
+                        args      => { '' => 'swallow' },
+                        level     => 'string',
+                        module    => 'string',
+                        tag       => 'string',
                         timestamp => 'integer',
-                        message => 'string'
+                        message   => 'string'
                     },
-                    summary  => {
-                        '' => 'single',
-                        notice => 'integer',
-                        warning => 'integer',
-                        error => 'integer',
+                    summary => {
+                        ''       => 'single',
+                        notice   => 'integer',
+                        warning  => 'integer',
+                        error    => 'integer',
                         critical => 'integer'
                     },
                     ipv4 => 'integer',
                     ipv6 => 'integer',
-                    ns => {
+                    ns   => {
                         fqdn => 'string',
-                        ip => 'string optional'
+                        ip   => 'string optional'
                     },
                     ds => {
-                        keytag => 'string',
+                        keytag    => 'string',
                         algorithm => 'string',
-                        type => 'string',
-                        digest => 'string'
+                        type      => 'string',
+                        digest    => 'string'
                     },
                     meta_data => {
-                        key => 'string',
+                        key   => 'string',
                         value => 'string'
                     }
                 },
@@ -346,55 +340,55 @@ sub Calls {
         DeleteAnalysis => {
             in => {
                 version => 'integer',
-                space     => 'string optional',
+                space   => 'string optional',
             }
         },
 
         CreateAnalyze => {
-            in  => {
+            in => {
                 version => 'integer',
-                space     => 'string optional',
-                fqdn => 'string',
-                policy   => 'string optional',
-                ipv4 => 'integer optional',
-                ipv6 => 'integer optional',
-                ns => {
+                space   => 'string optional',
+                fqdn    => 'string',
+                policy  => 'string optional',
+                ipv4    => 'integer optional',
+                ipv6    => 'integer optional',
+                ns      => {
                     fqdn => 'string',
-                    ip => 'string optional'
+                    ip   => 'string optional'
                 },
                 ds => {
-                    keytag => 'string',
+                    keytag    => 'string',
                     algorithm => 'string',
-                    type => 'string',
-                    digest => 'string'
+                    type      => 'string',
+                    digest    => 'string'
                 },
                 meta_data => {
-                    key => 'string',
+                    key   => 'string',
                     value => 'string'
                 }
             },
-            out => { id   => 'string' }
+            out => { id => 'string' }
         },
         ReadAnalyze => {
             in => {
-                version => 'integer',
-                id => 'string',
-                space     => 'string optional',
-                results => 'integer optional',
-                lang => 'string optional',
+                version      => 'integer',
+                id           => 'string',
+                space        => 'string optional',
+                results      => 'integer optional',
+                lang         => 'string optional',
                 last_results => 'integer optional'
             },
             out => {
-                id       => 'string',
-                url      => 'string',
-                fqdn     => 'string',
+                id     => 'string',
+                url    => 'string',
+                fqdn   => 'string',
                 policy => {
-                    name => 'string',
-                    display => 'string',
+                    name        => 'string',
+                    display     => 'string',
                     description => 'string optional'
                 },
-                status   => 'string',
-                error    => {
+                status => 'string',
+                error  => {
                     code    => 'string',
                     message => 'string'
                 },
@@ -402,35 +396,35 @@ sub Calls {
                 created  => 'integer',
                 updated  => 'integer',
                 results  => {
-                    _id => 'integer',
-                    args => { '' => 'swallow' },
-                    level => 'string',
-                    module => 'string',
-                    tag => 'string',
+                    _id       => 'integer',
+                    args      => { '' => 'swallow' },
+                    level     => 'string',
+                    module    => 'string',
+                    tag       => 'string',
                     timestamp => 'integer',
-                    message => 'string'
+                    message   => 'string'
                 },
-                summary  => {
-                    '' => 'single',
-                    notice => 'integer',
-                    warning => 'integer',
-                    error => 'integer',
+                summary => {
+                    ''       => 'single',
+                    notice   => 'integer',
+                    warning  => 'integer',
+                    error    => 'integer',
                     critical => 'integer'
                 },
                 ipv4 => 'integer',
                 ipv6 => 'integer',
-                ns => {
+                ns   => {
                     fqdn => 'string',
-                    ip => 'string optional'
+                    ip   => 'string optional'
                 },
                 ds => {
-                    keytag => 'string',
+                    keytag    => 'string',
                     algorithm => 'string',
-                    type => 'string',
-                    digest => 'string'
+                    type      => 'string',
+                    digest    => 'string'
                 },
                 meta_data => {
-                    key => 'string',
+                    key   => 'string',
                     value => 'string'
                 }
             }
@@ -438,8 +432,8 @@ sub Calls {
         ReadAnalyzeStatus => {
             in => {
                 version => 'integer',
-                id => 'string',
-                space     => 'string optional',
+                id      => 'string',
+                space   => 'string optional',
             },
             out => {
                 status   => 'string',
@@ -450,19 +444,17 @@ sub Calls {
         DeleteAnalyze => {
             in => {
                 version => 'integer',
-                id => 'string',
-                space     => 'string optional',
+                id      => 'string',
+                space   => 'string optional',
             }
         },
 
         ReadPolicies => {
-            in => {
-                version => 'integer'
-            },
+            in => { version => 'integer' },
             out => {
                 policies => {
-                    name => 'string',
-                    display => 'string',
+                    name        => 'string',
+                    display     => 'string',
                     description => 'string optional'
                 }
             }
@@ -470,11 +462,11 @@ sub Calls {
         ReadPolicy => {
             in => {
                 version => 'integer',
-                name => 'string'
+                name    => 'string'
             },
             out => {
-                name => 'string',
-                display => 'string',
+                name        => 'string',
+                display     => 'string',
                 description => 'string optional'
             }
         }

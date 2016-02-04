@@ -12,7 +12,7 @@ zonalizer-collector - Collector that runs Zonemaster in multiple threads.
 
 =cut
 
-STDOUT->autoflush(1);
+STDOUT->autoflush( 1 );
 
 Lim::Plugin::Zonalizer::Collector->new_with_options->run;
 

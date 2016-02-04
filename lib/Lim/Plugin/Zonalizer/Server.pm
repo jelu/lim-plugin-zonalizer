@@ -15,11 +15,11 @@ use AnyEvent         ();
 use AnyEvent::Handle ();
 use JSON::XS         ();
 use HTTP::Status     ();
-use URI::Escape::XS  qw(uri_escape);
-use AnyEvent::Util   ();
+use URI::Escape::XS qw(uri_escape);
+use AnyEvent::Util ();
 
-use Zonemaster ();
-use Zonemaster::Translator ();
+use Zonemaster                ();
+use Zonemaster::Translator    ();
 use Zonemaster::Logger::Entry ();
 use POSIX qw(setlocale LC_MESSAGES);
 
@@ -39,15 +39,15 @@ See L<Lim::Plugin::Zonalizer> for version.
 
 our $VERSION = $Lim::Plugin::Zonalizer::VERSION;
 
-our %STAT    = (
+our %STAT = (
     api => {
         requests => 0,
         errors   => 0
     },
     analysis => {
-        ongoing => 0,
+        ongoing   => 0,
         completed => 0,
-        failed => 0
+        failed    => 0
     }
 );
 
@@ -86,29 +86,29 @@ sub Init {
     # Default configuration
     #
 
-    $self->{default_limit}     = 10;
-    $self->{max_limit}         = 10;
-    $self->{base_url}          = 1;
-    $self->{db_driver}         = 'Memory';
-    $self->{db_conf}           = {};
-    $self->{lang}              = $ENV{LC_MESSAGES} || $ENV{LC_ALL} || $ENV{LANG} || $ENV{LANGUAGE} || 'en_US';
-    $self->{lang}              =~ s/\..*$//o;
-    $self->{test_ipv4} = 1;
-    $self->{test_ipv6} = 1;
-    $self->{allow_ipv4} = 1;
-    $self->{allow_ipv6} = 1;
+    $self->{default_limit} = 10;
+    $self->{max_limit}     = 10;
+    $self->{base_url}      = 1;
+    $self->{db_driver}     = 'Memory';
+    $self->{db_conf}       = {};
+    $self->{lang}          = $ENV{LC_MESSAGES} || $ENV{LC_ALL} || $ENV{LANG} || $ENV{LANGUAGE} || 'en_US';
+    $self->{lang} =~ s/\..*$//o;
+    $self->{test_ipv4}   = 1;
+    $self->{test_ipv6}   = 1;
+    $self->{allow_ipv4}  = 1;
+    $self->{allow_ipv6}  = 1;
     $self->{max_ongoing} = 5;
-    $self->{collector} = {
-        exec => 'zonalizer-collector',
+    $self->{collector}   = {
+        exec    => 'zonalizer-collector',
         threads => 5
     };
-    $self->{collector_policy} = {};
-    $self->{allow_undelegated} = 1;
-    $self->{force_undelegated} = 0;
-    $self->{max_undelegated_ns} = 10;
-    $self->{max_undelegated_ds} = 10;
-    $self->{allow_meta_data} = 0;
-    $self->{max_meta_data_entries} = 42;
+    $self->{collector_policy}         = {};
+    $self->{allow_undelegated}        = 1;
+    $self->{force_undelegated}        = 0;
+    $self->{max_undelegated_ns}       = 10;
+    $self->{max_undelegated_ds}       = 10;
+    $self->{allow_meta_data}          = 0;
+    $self->{max_meta_data_entries}    = 42;
     $self->{max_meta_data_entry_size} = 512;
 
     #
@@ -116,11 +116,13 @@ sub Init {
     #
 
     if ( ref( Lim->Config->{zonalizer} ) eq 'HASH' ) {
-        foreach ( qw(default_limit max_limit base_url db_driver custom_base_url
+        foreach (
+            qw(default_limit max_limit base_url db_driver custom_base_url
             lang test_ipv4 test_ipv6 allow_ipv4 allow_ipv6 max_ongoing
             allow_undelegated force_undelegated max_undelegated_ns
             max_undelegated_ds allow_meta_data max_meta_data_entries
-            max_meta_data_entry_size) )
+            max_meta_data_entry_size)
+          )
         {
             if ( defined Lim->Config->{zonalizer}->{$_} ) {
                 $self->{$_} = Lim->Config->{zonalizer}->{$_};
@@ -154,18 +156,18 @@ sub Init {
                 my $count = 1;
                 foreach my $policy ( @{ Lim->Config->{zonalizer}->{collector}->{policies} } ) {
                     unless ( ref( $policy ) eq 'HASH' ) {
-                        confess 'Configuration for collector->policies['.$count.'] is wrong, must be HASH';
+                        confess 'Configuration for collector->policies[' . $count . '] is wrong, must be HASH';
                     }
 
                     foreach ( qw(name display policy) ) {
                         unless ( defined $policy->{$_} ) {
-                            confess 'Configuration for collector->policies['.$count.']->'.$_.' is wrong, must be defined';
+                            confess 'Configuration for collector->policies[' . $count . ']->' . $_ . ' is wrong, must be defined';
                         }
                     }
 
                     foreach ( qw(description exec config sourceaddr threads) ) {
                         if ( exists $policy->{$_} and !defined $policy->{$_} ) {
-                            confess 'Configuration for collector->policies['.$count.']->'.$_.' is wrong, must be defined';
+                            confess 'Configuration for collector->policies[' . $count . ']->' . $_ . ' is wrong, must be defined';
                         }
                         if ( !exists $policy->{$_} and exists $self->{collector}->{$_} ) {
                             $policy->{$_} = $self->{collector}->{$_};
@@ -173,10 +175,10 @@ sub Init {
                     }
 
                     unless ( $policy->{name} =~ /^[\w-]+/o ) {
-                        confess 'Configuration for collector->policies['.$count.'] is wrong, illegal characters in policy name';
+                        confess 'Configuration for collector->policies[' . $count . '] is wrong, illegal characters in policy name';
                     }
                     if ( exists $self->{collector_policy}->{ $policy->{name} } ) {
-                        confess 'Configuration for collector->policies['.$count.'] is wrong, policy '.$policy->{name}.' already exists';
+                        confess 'Configuration for collector->policies[' . $count . '] is wrong, policy ' . $policy->{name} . ' already exists';
                     }
 
                     $self->{collector_policy}->{ $policy->{name} } = $policy;
@@ -261,25 +263,30 @@ sub Init {
     # Temporary memory scrubber
     #
 
-    $self->{cleaner} = AnyEvent->timer(after => 60, interval => 60, cb => sub {
-        unless ( $self ) {
-            return;
-        }
+    $self->{cleaner} = AnyEvent->timer(
+        after    => 60,
+        interval => 60,
+        cb       => sub {
+            unless ( $self ) {
+                return;
+            }
 
-        foreach (values %TEST) {
-            if ($_->{updated} < (time - 600)) {
-                delete $TEST{ $_->{id} };
-                delete $TEST_DB{ $_->{id} };
-                delete $TEST_SPACE{ $_->{id} };
+            foreach ( values %TEST ) {
+                if ( $_->{updated} < ( time - 600 ) ) {
+                    delete $TEST{ $_->{id} };
+                    delete $TEST_DB{ $_->{id} };
+                    delete $TEST_SPACE{ $_->{id} };
+                }
             }
         }
-    });
+    );
 
     #
     # Start collector
     #
 
-    my $code; $code = sub {
+    my $code;
+    $code = sub {
         unless ( defined $self ) {
             return;
         }
@@ -288,10 +295,10 @@ sub Init {
 
         $self->{collector}->{analyze} = $self->StartCollector(
             exec => $self->{collector}->{exec},
-            $self->{collector}->{config} ? ( config => $self->{collector}->{config} ) : (),
-            $self->{collector}->{policy} ? ( policy => $self->{collector}->{policy} ) : (),
+            $self->{collector}->{config}     ? ( config     => $self->{collector}->{config} )     : (),
+            $self->{collector}->{policy}     ? ( policy     => $self->{collector}->{policy} )     : (),
             $self->{collector}->{sourceaddr} ? ( sourceaddr => $self->{collector}->{sourceaddr} ) : (),
-            $self->{collector}->{threads} ? ( threads => $self->{collector}->{threads} ) : (),
+            $self->{collector}->{threads}    ? ( threads    => $self->{collector}->{threads} )    : (),
             on_eof => $code
         );
     };
@@ -299,19 +306,20 @@ sub Init {
 
     foreach ( values %{ $self->{collector_policy} } ) {
         my $policy = $_;
-        my $code; $code = sub {
+        my $code;
+        $code = sub {
             unless ( defined $self ) {
                 return;
             }
 
             Lim::DEBUG and $self->{logger}->debug( '(re)starting collector for policy ', $policy->{name} );
 
-            $self->{collector_policy}->{$policy->{name}}->{analyze} = $self->StartCollector(
+            $self->{collector_policy}->{ $policy->{name} }->{analyze} = $self->StartCollector(
                 exec => $policy->{exec},
-                $policy->{config} ? ( config => $policy->{config} ) : (),
-                $policy->{policy} ? ( policy => $policy->{policy} ) : (),
+                $policy->{config}     ? ( config     => $policy->{config} )     : (),
+                $policy->{policy}     ? ( policy     => $policy->{policy} )     : (),
                 $policy->{sourceaddr} ? ( sourceaddr => $policy->{sourceaddr} ) : (),
-                $policy->{threads} ? ( threads => $policy->{threads} ) : (),
+                $policy->{threads}    ? ( threads    => $policy->{threads} )    : (),
                 on_eof => $code
             );
         };
@@ -399,25 +407,33 @@ sub ReadVersion {
     my ( $self, $cb, $q ) = @_;
     $STAT{api}->{requests}++;
 
-    my @tests = ( {
-        name => 'Basic',
-        version => Zonemaster::Test::Basic->VERSION
-    } );
+    my @tests = (
+        {
+            name    => 'Basic',
+            version => Zonemaster::Test::Basic->VERSION
+        }
+    );
 
     foreach ( Zonemaster::Test->modules ) {
-        push( @tests, {
-            name => $_,
-            version => ( 'Zonemaster::Test::' . $_ )->VERSION
-        } );
+        push(
+            @tests,
+            {
+                name    => $_,
+                version => ( 'Zonemaster::Test::' . $_ )->VERSION
+            }
+        );
     }
 
-    $self->Successful( $cb, {
-        version => $VERSION,
-        zonemaster => {
-            version => Zonemaster->VERSION,
-            tests => \@tests
+    $self->Successful(
+        $cb,
+        {
+            version    => $VERSION,
+            zonemaster => {
+                version => Zonemaster->VERSION,
+                tests   => \@tests
+            }
         }
-    } );
+    );
     return;
 }
 
@@ -523,12 +539,15 @@ sub ReadAnalysis {
                     my $entry = Zonemaster::Logger::Entry->new( $result );
 
                     my $message = $translator->translate_tag( $entry );
-                    utf8::decode($message);
+                    utf8::decode( $message );
 
-                    push( @results, {
-                        %$result,
-                        message => $message
-                    });
+                    push(
+                        @results,
+                        {
+                            %$result,
+                            message => $message
+                        }
+                    );
                 }
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
 
@@ -609,7 +628,7 @@ sub ReadAnalysis {
                     foreach my $result ( @{ $_->{results} } ) {
                         my $entry = Zonemaster::Logger::Entry->new( $result );
                         $result->{message} = $translator->translate_tag( $entry );
-                        utf8::decode($result->{message});
+                        utf8::decode( $result->{message} );
                     }
                 }
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
@@ -619,44 +638,57 @@ sub ReadAnalysis {
 
                 if ( $_->{ns} ) {
                     foreach my $ns ( @{ $_->{ns} } ) {
-                        push( @ns, {
-                            fqdn => $ns->{fqdn},
-                            exists $ns->{ip} ? ( ip => $ns->{ip} ) : ()
-                        } );
+                        push(
+                            @ns,
+                            {
+                                fqdn => $ns->{fqdn},
+                                exists $ns->{ip} ? ( ip => $ns->{ip} ) : ()
+                            }
+                        );
                     }
                 }
 
                 if ( $_->{ds} ) {
                     foreach my $ds ( @{ $_->{ds} } ) {
-                        push( @ds, {
-                            keytag => $ds->{keytag},
-                            algorithm => $ds->{algorithm},
-                            type => $ds->{type},
-                            digest => $ds->{digest}
-                        } );
+                        push(
+                            @ds,
+                            {
+                                keytag    => $ds->{keytag},
+                                algorithm => $ds->{algorithm},
+                                type      => $ds->{type},
+                                digest    => $ds->{digest}
+                            }
+                        );
                     }
                 }
 
                 if ( $_->{meta_data} ) {
                     foreach my $meta_data ( @{ $_->{meta_data} } ) {
-                        push( @meta_data, {
-                            key => $meta_data->{key},
-                            value => $meta_data->{value}
-                        } );
+                        push(
+                            @meta_data,
+                            {
+                                key   => $meta_data->{key},
+                                value => $meta_data->{value}
+                            }
+                        );
                     }
                 }
 
                 push(
                     @analysis,
                     {
-                        id       => $_->{id},
-                        fqdn     => $_->{fqdn},
-                        exists $_->{policy} ? ( policy => {
-                            name => $_->{policy}->{name},
-                            display => $_->{policy}->{display},
-                            $_->{policy}->{description} ? ( description => $_->{policy}->{description} ) : ()
-                        } ) : (),
-                        url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $_->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
+                        id   => $_->{id},
+                        fqdn => $_->{fqdn},
+                        exists $_->{policy}
+                        ? (
+                            policy => {
+                                name    => $_->{policy}->{name},
+                                display => $_->{policy}->{display},
+                                $_->{policy}->{description} ? ( description => $_->{policy}->{description} ) : ()
+                            }
+                          )
+                        : (),
+                        url => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $_->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
                         status   => $_->{status},
                         progress => $_->{progress},
                         created  => $_->{created},
@@ -664,15 +696,15 @@ sub ReadAnalysis {
                         exists $_->{error} ? ( error => $_->{error} ) : (),
                         defined $q->{results} && $q->{results} == 1 && exists $_->{results} ? ( results => $_->{results} ) : (),
                         summary => {
-                            notice => $_->{summary}->{notice},
-                            warning => $_->{summary}->{warning},
-                            error => $_->{summary}->{error},
+                            notice   => $_->{summary}->{notice},
+                            warning  => $_->{summary}->{warning},
+                            error    => $_->{summary}->{error},
                             critical => $_->{summary}->{critical}
                         },
                         ipv4 => $_->{ipv4},
                         ipv6 => $_->{ipv6},
-                        scalar @ns ? ( ns => \@ns ) : (),
-                        scalar @ds ? ( ds => \@ds ) : (),
+                        scalar @ns        ? ( ns        => \@ns )        : (),
+                        scalar @ds        ? ( ds        => \@ds )        : (),
                         scalar @meta_data ? ( meta_data => \@meta_data ) : ()
                     }
                 );
@@ -740,16 +772,16 @@ sub DeleteAnalysis {
 
             if ( $q->{space} ) {
                 foreach ( keys %TEST_SPACE ) {
-                    if ( $TEST_SPACE{ $_ } eq $q->{space} ) {
-                        delete $TEST{ $_ };
-                        delete $TEST_DB{ $_ };
-                        delete $TEST_SPACE{ $_ };
+                    if ( $TEST_SPACE{$_} eq $q->{space} ) {
+                        delete $TEST{$_};
+                        delete $TEST_DB{$_};
+                        delete $TEST_SPACE{$_};
                     }
                 }
             }
             else {
-                %TEST = ();
-                %TEST_DB = ();
+                %TEST       = ();
+                %TEST_DB    = ();
                 %TEST_SPACE = ();
             }
 
@@ -810,7 +842,7 @@ sub CreateAnalyze {
         }
 
         $policy = {
-            name => $self->{collector_policy}->{ $q->{policy} }->{name},
+            name    => $self->{collector_policy}->{ $q->{policy} }->{name},
             display => $self->{collector_policy}->{ $q->{policy} }->{display},
             $self->{collector_policy}->{ $q->{policy} }->{description} ? ( description => $self->{collector_policy}->{ $q->{policy} }->{description} ) : ()
         };
@@ -877,7 +909,7 @@ sub CreateAnalyze {
 
     my @ns;
     if ( $q->{ns} ) {
-        unless ( ref($q->{ns}) eq 'ARRAY' ) {
+        unless ( ref( $q->{ns} ) eq 'ARRAY' ) {
             $q->{ns} = [ $q->{ns} ];
         }
 
@@ -901,7 +933,7 @@ sub CreateAnalyze {
 
     my @ds;
     if ( $q->{ds} ) {
-        unless ( ref($q->{ds}) eq 'ARRAY' ) {
+        unless ( ref( $q->{ds} ) eq 'ARRAY' ) {
             $q->{ds} = [ $q->{ds} ];
         }
 
@@ -989,15 +1021,16 @@ sub CreateAnalyze {
             return;
         }
 
-        unless ( ref($q->{meta_data}) eq 'ARRAY' ) {
+        unless ( ref( $q->{meta_data} ) eq 'ARRAY' ) {
             $q->{meta_data} = [ $q->{meta_data} ];
         }
 
         my $count = 0;
         foreach ( @{ $q->{meta_data} } ) {
-            unless ( $count < $self->{max_meta_data_entries}
-                and $_->{key} and $_->{value}
-                and ( length($_->{key}) + length($_->{value}) ) <= $self->{max_meta_data_entry_size} )
+            unless ($count < $self->{max_meta_data_entries}
+                and $_->{key}
+                and $_->{value}
+                and ( length( $_->{key} ) + length( $_->{value} ) ) <= $self->{max_meta_data_entry_size} )
             {
                 $STAT{api}->{errors}++;
                 $self->Error(
@@ -1019,7 +1052,7 @@ sub CreateAnalyze {
     if ( $q->{policy} ) {
         $collector_analyze = $self->{collector_policy}->{ $q->{policy} }->{analyze};
     }
-    unless ( ref($collector_analyze) eq 'CODE' ) {
+    unless ( ref( $collector_analyze ) eq 'CODE' ) {
         Lim::ERR and $self->{logger}->error( 'Unable to call collector' );
         $STAT{api}->{errors}++;
         $self->Error(
@@ -1040,7 +1073,7 @@ sub CreateAnalyze {
     $uuid->make( 'v4' );
     my $id = MIME::Base64::encode_base64url( $uuid->export( 'bin' ) );
 
-    if ( exists $TEST{ $id } ) {
+    if ( exists $TEST{$id} ) {
         $STAT{api}->{errors}++;
         $self->Error(
             $cb,
@@ -1054,23 +1087,23 @@ sub CreateAnalyze {
     }
 
     my $test = $TEST{$id} = {
-        id       => $id,
-        fqdn     => $fqdn,
+        id   => $id,
+        fqdn => $fqdn,
         $policy ? ( policy => $policy ) : (),
         status   => STATUS_RESERVED,
         progress => 0,
         created  => time,
         updated  => time,
         summary  => {
-            notice => 0,
-            warning => 0,
-            error => 0,
+            notice   => 0,
+            warning  => 0,
+            error    => 0,
             critical => 0
         },
         ipv4 => $ipv4,
         ipv6 => $ipv6,
-        $q->{ns} ? ( ns => $q->{ns} ) : (),
-        $q->{ds} ? ( ds => $q->{ds} ) : (),
+        $q->{ns}        ? ( ns        => $q->{ns} )        : (),
+        $q->{ds}        ? ( ds        => $q->{ds} )        : (),
         $q->{meta_data} ? ( meta_data => $q->{meta_data} ) : ()
     };
     if ( $q->{space} ) {
@@ -1079,12 +1112,12 @@ sub CreateAnalyze {
 
     $STAT{analysis}->{ongoing}++;
 
-    $self->{logger}->debug('Reserving ', $fqdn, ' ', $id);
+    $self->{logger}->debug( 'Reserving ', $fqdn, ' ', $id );
 
     $self->{db}->CreateAnalyze(
         $q->{space} ? ( space => $q->{space} ) : (),
         analyze => $test,
-        cb => sub {
+        cb      => sub {
             my ( $object ) = @_;
 
             # uncoverable branch true
@@ -1100,8 +1133,8 @@ sub CreateAnalyze {
                 $STAT{analysis}->{ongoing}--;
                 $STAT{analysis}->{failed}++;
 
-                delete $TEST{ $id };
-                delete $TEST_SPACE{ $id };
+                delete $TEST{$id};
+                delete $TEST_SPACE{$id};
 
                 $STAT{api}->{errors}++;
                 $self->Error(
@@ -1115,7 +1148,7 @@ sub CreateAnalyze {
                 return;
             }
 
-            $TEST_DB{ $id } = $object;
+            $TEST_DB{$id} = $object;
 
             $test->{status} = STATUS_QUEUED;
 
@@ -1125,7 +1158,7 @@ sub CreateAnalyze {
             my $modules_done = 0;
             my $started      = 0;
             my $result_id    = 0;
-            my $failed = sub {
+            my $failed       = sub {
                 $STAT{analysis}->{ongoing}--;
                 $STAT{analysis}->{failed}++;
                 $test->{status} = STATUS_FAILED;
@@ -1153,7 +1186,7 @@ sub CreateAnalyze {
                     }
 
                     $test->{updated} = time;
-                    $test->{status} = STATUS_ANALYZING;
+                    $test->{status}  = STATUS_ANALYZING;
 
                     if ( $msg->{level} eq 'DEBUG' || ( $msg->{level} eq 'INFO' && $msg->{tag} eq 'POLICY_DISABLED' ) ) {
                         if ( !$started && $msg->{tag} eq 'MODULE_VERSION' ) {
@@ -1208,7 +1241,7 @@ sub CreateAnalyze {
 
                     return;
                 },
-                id => $id,
+                id   => $id,
                 fqdn => $fqdn,
                 ipv4 => $ipv4,
                 ipv6 => $ipv6,
@@ -1307,7 +1340,7 @@ sub ReadAnalyze {
 
         if ( exists $q->{last_results} and $q->{last_results} ) {
             my $results = delete $test{results};
-            $test{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
+            $test{results} = scalar @$results < $q->{last_results} ? [@$results] : [ @{$results}[ -$q->{last_results} .. -1 ] ];
         }
         elsif ( exists $q->{results} and !$q->{results} ) {
             delete $test{results};
@@ -1321,12 +1354,15 @@ sub ReadAnalyze {
                 my $entry = Zonemaster::Logger::Entry->new( $result );
 
                 my $message = $translator->translate_tag( $entry );
-                utf8::decode($message);
+                utf8::decode( $message );
 
-                push( @results, {
-                    %$result,
-                    message => $message
-                });
+                push(
+                    @results,
+                    {
+                        %$result,
+                        message => $message
+                    }
+                );
             }
             setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
 
@@ -1386,9 +1422,9 @@ sub ReadAnalyze {
             #
 
             if ( exists $q->{last_results} and $q->{last_results} ) {
-                my %test = %{ $TEST{ $q->{id} } };
+                my %test    = %{ $TEST{ $q->{id} } };
                 my $results = delete $analyze->{results};
-                $analyze->{results} = scalar @$results < $q->{last_results} ? [ @$results ] : [ @{$results}[-$q->{last_results}..-1] ];
+                $analyze->{results} = scalar @$results < $q->{last_results} ? [@$results] : [ @{$results}[ -$q->{last_results} .. -1 ] ];
             }
             elsif ( exists $q->{results} and !$q->{results} ) {
                 delete $analyze->{results};
@@ -1399,7 +1435,7 @@ sub ReadAnalyze {
                 foreach my $result ( @{ $analyze->{results} } ) {
                     my $entry = Zonemaster::Logger::Entry->new( $result );
                     $result->{message} = $translator->translate_tag( $entry );
-                    utf8::decode($result->{message});
+                    utf8::decode( $result->{message} );
                 }
                 setlocale( LC_MESSAGES, $self->{lang} . '.UTF-8' );
             }
@@ -1408,60 +1444,73 @@ sub ReadAnalyze {
 
             if ( $analyze->{ns} ) {
                 foreach my $ns ( @{ $analyze->{ns} } ) {
-                    push( @ns, {
-                        fqdn => $ns->{fqdn},
-                        exists $ns->{ip} ? ( ip => $ns->{ip} ) : ()
-                    } );
+                    push(
+                        @ns,
+                        {
+                            fqdn => $ns->{fqdn},
+                            exists $ns->{ip} ? ( ip => $ns->{ip} ) : ()
+                        }
+                    );
                 }
             }
 
             if ( $analyze->{ds} ) {
                 foreach my $ds ( @{ $analyze->{ds} } ) {
-                    push( @ds, {
-                        keytag => $ds->{keytag},
-                        algorithm => $ds->{algorithm},
-                        type => $ds->{type},
-                        digest => $ds->{digest}
-                    } );
+                    push(
+                        @ds,
+                        {
+                            keytag    => $ds->{keytag},
+                            algorithm => $ds->{algorithm},
+                            type      => $ds->{type},
+                            digest    => $ds->{digest}
+                        }
+                    );
                 }
             }
 
             if ( $analyze->{meta_data} ) {
                 foreach my $meta_data ( @{ $analyze->{meta_data} } ) {
-                    push( @meta_data, {
-                        key => $meta_data->{key},
-                        value => $meta_data->{value}
-                    } );
+                    push(
+                        @meta_data,
+                        {
+                            key   => $meta_data->{key},
+                            value => $meta_data->{value}
+                        }
+                    );
                 }
             }
 
             $self->Successful(
                 $cb,
                 {
-                    id       => $analyze->{id},
-                    fqdn     => $analyze->{fqdn},
-                    exists $analyze->{policy} ? ( policy => {
-                        name => $analyze->{policy}->{name},
-                        display => $analyze->{policy}->{display},
-                        $analyze->{policy}->{description} ? ( description => $analyze->{policy}->{description} ) : ()
-                    } ) : (),
-                    url      => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $analyze->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
+                    id   => $analyze->{id},
+                    fqdn => $analyze->{fqdn},
+                    exists $analyze->{policy}
+                    ? (
+                        policy => {
+                            name    => $analyze->{policy}->{name},
+                            display => $analyze->{policy}->{display},
+                            $analyze->{policy}->{description} ? ( description => $analyze->{policy}->{description} ) : ()
+                        }
+                      )
+                    : (),
+                    url => $base_url . '/zonalizer/' . uri_escape( $q->{version} ) . '/analysis/' . uri_escape( $analyze->{id} ) . ( $q->{space} ? '?space=' . uri_escape( $q->{space} ) : '' ),
                     status   => $analyze->{status},
                     progress => $analyze->{progress},
                     created  => $analyze->{created},
                     updated  => $analyze->{updated},
-                    exists $analyze->{error} ? ( error => $analyze->{error} ) : (),
+                    exists $analyze->{error}   ? ( error   => $analyze->{error} )   : (),
                     exists $analyze->{results} ? ( results => $analyze->{results} ) : (),
                     summary => {
-                        notice => $analyze->{summary}->{notice},
-                        warning => $analyze->{summary}->{warning},
-                        error => $analyze->{summary}->{error},
+                        notice   => $analyze->{summary}->{notice},
+                        warning  => $analyze->{summary}->{warning},
+                        error    => $analyze->{summary}->{error},
                         critical => $analyze->{summary}->{critical}
                     },
                     ipv4 => $analyze->{ipv4},
                     ipv6 => $analyze->{ipv6},
-                    scalar @ns ? ( ns => \@ns ) : (),
-                    scalar @ds ? ( ds => \@ds ) : (),
+                    scalar @ns        ? ( ns        => \@ns )        : (),
+                    scalar @ds        ? ( ds        => \@ds )        : (),
                     scalar @meta_data ? ( meta_data => \@meta_data ) : ()
                 }
             );
@@ -1516,11 +1565,14 @@ sub ReadAnalyzeStatus {
             }
         }
 
-        $self->Successful( $cb, {
-            status => $TEST{ $q->{id} }->{status},
-            progress => $TEST{ $q->{id} }->{progress},
-            updated => $TEST{ $q->{id} }->{updated}
-        } );
+        $self->Successful(
+            $cb,
+            {
+                status   => $TEST{ $q->{id} }->{status},
+                progress => $TEST{ $q->{id} }->{progress},
+                updated  => $TEST{ $q->{id} }->{updated}
+            }
+        );
         return;
     }
 
@@ -1693,14 +1745,17 @@ sub ReadPolicies {
     my @policies;
 
     foreach ( values %{ $self->{collector_policy} } ) {
-        push( @policies, {
-            name => $_->{name},
-            display => $_->{display},
-            $_->{description} ? ( description => $_->{description} ) : ()
-        } );
+        push(
+            @policies,
+            {
+                name    => $_->{name},
+                display => $_->{display},
+                $_->{description} ? ( description => $_->{description} ) : ()
+            }
+        );
     }
 
-    $self->Successful($cb, { policies => \@policies } );
+    $self->Successful( $cb, { policies => \@policies } );
     return;
 }
 
@@ -1727,11 +1782,14 @@ sub ReadPolicy {
         return;
     }
 
-    $self->Successful($cb, {
-        name => $self->{collector_policy}->{ $q->{name} }->{name},
-        display => $self->{collector_policy}->{ $q->{name} }->{display},
-        $self->{collector_policy}->{ $q->{name} }->{description} ? ( description => $self->{collector_policy}->{ $q->{name} }->{description} ) : ()
-    });
+    $self->Successful(
+        $cb,
+        {
+            name    => $self->{collector_policy}->{ $q->{name} }->{name},
+            display => $self->{collector_policy}->{ $q->{name} }->{display},
+            $self->{collector_policy}->{ $q->{name} }->{description} ? ( description => $self->{collector_policy}->{ $q->{name} }->{description} ) : ()
+        }
+    );
     return;
 }
 
@@ -1753,23 +1811,24 @@ sub StoreAnalyze {
     unless ( defined $id ) {
         $self->{logger}->error( 'called without $id' );
     }
-    unless ( exists $TEST{ $id } ) {
+    unless ( exists $TEST{$id} ) {
         $self->{logger}->error( 'called but $TEST{ $id } does not exist' );
         return;
     }
-    unless ( exists $TEST_DB{ $id } ) {
+    unless ( exists $TEST_DB{$id} ) {
         $self->{logger}->error( 'called but $TEST_DB{ $id } does not exist' );
         return;
     }
 
-    $self->{logger}->debug('Storing ', $id);
+    $self->{logger}->debug( 'Storing ', $id );
 
     $self->{db}->UpdateAnalyze(
         analyze => {
-            %{ $TEST_DB{ $id } },
-            %{ $TEST{ $id } }
+            %{ $TEST_DB{$id} },
+            %{ $TEST{$id} }
         },
         cb => sub {
+
             # uncoverable branch true
             unless ( defined $self ) {
 
@@ -1781,9 +1840,9 @@ sub StoreAnalyze {
                 $self->{logger}->error( 'Unable to store ', $id, ' in database, analyze will be lost: ', $@ );
             }
 
-            delete $TEST{ $id };
-            delete $TEST_DB{ $id };
-            delete $TEST_SPACE{ $id };
+            delete $TEST{$id};
+            delete $TEST_DB{$id};
+            delete $TEST_SPACE{$id};
         }
     );
     return;
@@ -1842,21 +1901,26 @@ sub StartCollector {
     my $hdl = AnyEvent::Handle->new( fh => $write );
     my %id;
 
-    Lim::DEBUG and $self->{logger}->debug( 'open ', join( ' ',
-        $args{exec},
-        $args{config} ? ( '--config', $args{config} ) : (),
-        $args{policy} ? ( '--policy', $args{policy} ) : (),
-        $args{sourceaddr} ? ( '--sourceaddr', $args{sourceaddr} ) : (),
-        $args{threads} ? ( '--threads', $args{threads} ) : ()
-    ) );
+    Lim::DEBUG and $self->{logger}->debug(
+        'open ',
+        join(
+            ' ',
+            $args{exec},
+            $args{config}     ? ( '--config',     $args{config} )     : (),
+            $args{policy}     ? ( '--policy',     $args{policy} )     : (),
+            $args{sourceaddr} ? ( '--sourceaddr', $args{sourceaddr} ) : (),
+            $args{threads}    ? ( '--threads',    $args{threads} )    : ()
+        )
+    );
 
-    my $cv; $cv = AnyEvent::Util::run_cmd(
+    my $cv;
+    $cv = AnyEvent::Util::run_cmd(
         [
             $args{exec},
-            $args{config} ? ( '--config', $args{config} ) : (),
-            $args{policy} ? ( '--policy', $args{policy} ) : (),
+            $args{config}     ? ( '--config',     $args{config} )     : (),
+            $args{policy}     ? ( '--policy',     $args{policy} )     : (),
             $args{sourceaddr} ? ( '--sourceaddr', $args{sourceaddr} ) : (),
-            $args{threads} ? ( '--threads', $args{threads} ) : (),
+            $args{threads}    ? ( '--threads',    $args{threads} )    : (),
         ],
         '>' => sub {
             unless ( defined $self ) {
@@ -1867,12 +1931,12 @@ sub StartCollector {
             eval {
                 @entries = $json->incr_parse( @_ );
                 foreach ( @entries ) {
-                    unless ( ref($_) eq 'HASH' and $_->{_id} ) {
+                    unless ( ref( $_ ) eq 'HASH' and $_->{_id} ) {
                         die;
                     }
 
                     unless ( $id{ $_->{_id} } ) {
-                        Lim::WARN and $self->{logger}->warn('collector received data for unknown id');
+                        Lim::WARN and $self->{logger}->warn( 'collector received data for unknown id' );
                         next;
                     }
 
@@ -1891,31 +1955,31 @@ sub StartCollector {
                 return;
             }
 
-            Lim::DEBUG and $self->{logger}->debug('collector: ', @_);
+            Lim::DEBUG and $self->{logger}->debug( 'collector: ', @_ );
         },
         '<' => $read,
     );
 
-    $cv->cb( sub {
-        unless ( defined $self ) {
-            return;
-        }
+    $cv->cb(
+        sub {
+            unless ( defined $self ) {
+                return;
+            }
 
-        eval {
-            shift->recv;
-        };
-        if ( $@ ) {
-            Lim::ERR and $self->{logger}->error('collector: ', $@);
-        }
+            eval { shift->recv; };
+            if ( $@ ) {
+                Lim::ERR and $self->{logger}->error( 'collector: ', $@ );
+            }
 
-        foreach ( values %id ) {
-            $_->();
-        }
+            foreach ( values %id ) {
+                $_->();
+            }
 
-        close( $read );
-        $hdl->destroy;
-        $args{on_eof}->();
-    } );
+            close( $read );
+            $hdl->destroy;
+            $args{on_eof}->();
+        }
+    );
 
     return sub {
         my ( $cb, %args ) = @_;
@@ -1924,13 +1988,11 @@ sub StartCollector {
             return;
         }
 
-        unless ( ref($cb) eq 'CODE' and $args{id} and !exists $id{ $args{id} } ) {
+        unless ( ref( $cb ) eq 'CODE' and $args{id} and !exists $id{ $args{id} } ) {
             confess 'collector->analyze called incorrectly';
         }
 
-        eval {
-            $hdl->push_write( $json->encode( \%args ) . "\n" );
-        };
+        eval { $hdl->push_write( $json->encode( \%args ) . "\n" ); };
         if ( $@ or $hdl->destroyed ) {
             $cb->();
             return;

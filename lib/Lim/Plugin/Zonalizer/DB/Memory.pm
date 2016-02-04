@@ -14,9 +14,7 @@ use Lim ();
 
 use base qw(Lim::Plugin::Zonalizer::DB);
 
-our %FIELD = (
-    analysis => { map { $_ => 1 } ( qw(created updated) ) }
-);
+our %FIELD = ( analysis => { map { $_ => 1 } ( qw(created updated) ) } );
 
 =encoding utf8
 
@@ -129,7 +127,7 @@ sub ReadAnalysis {
         $analysis = $self->{space}->{$space}->{analyze_rfqdn}->{$search_fqdn2};
     }
 
-    if ( scalar @{ $analysis } and defined $args{sort} ) {
+    if ( scalar @{$analysis} and defined $args{sort} ) {
         unless ( exists $analysis->[0]->{ $args{sort} } ) {
             $@ = ERR_INVALID_SORT_FIELD;
             $args{cb}->();
@@ -138,20 +136,20 @@ sub ReadAnalysis {
         if ( $args{direction} eq 'descending' ) {
             my @sort;
             if ( exists $FIELD{analysis}->{ $args{sort} } ) {
-                @sort = sort { $b->{ $args{sort} } <=> $a->{ $args{sort} } } @{ $analysis };
+                @sort = sort { $b->{ $args{sort} } <=> $a->{ $args{sort} } } @{$analysis};
             }
             else {
-                @sort = sort { $b->{ $args{sort} } cmp $a->{ $args{sort} } } @{ $analysis };
+                @sort = sort { $b->{ $args{sort} } cmp $a->{ $args{sort} } } @{$analysis};
             }
             $analysis = \@sort;
         }
         else {
             my @sort;
             if ( exists $FIELD{analysis}->{ $args{sort} } ) {
-                @sort = sort { $a->{ $args{sort} } <=> $b->{ $args{sort} } } @{ $analysis };
+                @sort = sort { $a->{ $args{sort} } <=> $b->{ $args{sort} } } @{$analysis};
             }
             else {
-                @sort = sort { $a->{ $args{sort} } cmp $b->{ $args{sort} } } @{ $analysis };
+                @sort = sort { $a->{ $args{sort} } cmp $b->{ $args{sort} } } @{$analysis};
             }
             $analysis = \@sort;
         }

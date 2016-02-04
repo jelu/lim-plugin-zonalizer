@@ -16,9 +16,7 @@ use Clone qw(clone);
 
 use base qw(Lim::Plugin::Zonalizer::DB);
 
-our %VALID_ORDER_FIELD = (
-    analysis => { fqdn => 0, map { $_ => 1 } ( qw(created updated) ) }
-);
+our %VALID_ORDER_FIELD = ( analysis => { fqdn => 0, map { $_ => 1 } ( qw(created updated) ) } );
 our $ID_DELIMITER = ':';
 
 =encoding utf8
@@ -161,7 +159,7 @@ sub ReadAnalysis {
 
         if ( defined $args{after} ) {
             $startkey = [ split( /$ID_DELIMITER/o, $args{after} ), !$option{descending} ? ( {} ) : () ];
-            unless ( scalar @{ $startkey } == 2 + ( !$option{descending} ? 1 : 0 ) ) {
+            unless ( scalar @{$startkey} == 2 + ( !$option{descending} ? 1 : 0 ) ) {
                 $@ = ERR_INVALID_AFTER;
                 $args{cb}->();
                 return;
@@ -175,7 +173,7 @@ sub ReadAnalysis {
         elsif ( defined $args{before} ) {
             $reverse = 1;
             $startkey = [ split( /$ID_DELIMITER/o, $args{before} ), $option{descending} ? ( {} ) : () ];
-            unless ( scalar @{ $startkey } == 2 + ( $option{descending} ? 1 : 0 ) ) {
+            unless ( scalar @{$startkey} == 2 + ( $option{descending} ? 1 : 0 ) ) {
                 $@ = ERR_INVALID_BEFORE;
                 $args{cb}->();
                 return;
@@ -191,7 +189,7 @@ sub ReadAnalysis {
             unless ( $option{startkey} ) {
                 $option{startkey} = [ $args{space} ? $args{space} : '' ];
             }
-            push( @{$option{startkey}}, @$startkey );
+            push( @{ $option{startkey} }, @$startkey );
         }
 
         $view = ( $view ? $view . '_' : '' ) . 'by_' . $args{sort};
@@ -208,7 +206,7 @@ sub ReadAnalysis {
         }
 
         if ( $startkey ) {
-            push( @{$option{startkey}}, @$startkey );
+            push( @{ $option{startkey} }, @$startkey );
         }
 
         unless ( $view ) {
@@ -235,7 +233,7 @@ sub ReadAnalysis {
     }
 
     # uncoverable branch false
-    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/', $view, $args{space} ? ' '.$args{space} : '' );
+    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/', $view, $args{space} ? ' ' . $args{space} : '' );
     $self->{db}->view( 'analysis/' . $view, \%option )->cb(
         sub {
             # uncoverable branch true
@@ -340,11 +338,11 @@ sub ReadAnalysis {
                         eval {
                             $keys = $self->HandleResponseKey( $_[0] );
 
-                            unless ( ref($keys->[0]) eq 'ARRAY' ) {
+                            unless ( ref( $keys->[0] ) eq 'ARRAY' ) {
                                 die 'invalid schema';
                             }
                             if ( defined $search_fqdn or defined $search_fqdn2 ) {
-                                unless ( ref($keys->[0]->[1]) eq 'ARRAY' ) {
+                                unless ( ref( $keys->[0]->[1] ) eq 'ARRAY' ) {
                                     die 'invalid schema';
                                 }
                             }
@@ -408,11 +406,11 @@ sub ReadAnalysis {
                     eval {
                         $keys = $self->HandleResponseKey( $_[0] );
 
-                        unless ( ref($keys->[0]) eq 'ARRAY' ) {
+                        unless ( ref( $keys->[0] ) eq 'ARRAY' ) {
                             die 'invalid schema';
                         }
                         if ( defined $search_fqdn or defined $search_fqdn2 ) {
-                            unless ( ref($keys->[0]->[1]) eq 'ARRAY' ) {
+                            unless ( ref( $keys->[0]->[1] ) eq 'ARRAY' ) {
                                 die 'invalid schema';
                             }
                         }
@@ -477,15 +475,20 @@ sub DeleteAnalysis {
     $analysis = sub {
 
         # uncoverable branch false
-        Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all', $args{space} ? ' '.$args{space} : ''  );
-        $self->{db}->view( 'analysis/all', {
-            $args{space} ? (
-                startkey => [ $args{space}, undef ],
-                endkey => [ $args{space}, {} ]
-            ) : (),
-            limit => $self->{delete_batch},
-            include_docs => 1
-        } )->cb(
+        Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all', $args{space} ? ' ' . $args{space} : '' );
+        $self->{db}->view(
+            'analysis/all',
+            {
+                $args{space}
+                ? (
+                    startkey => [ $args{space}, undef ],
+                    endkey => [ $args{space}, {} ]
+                  )
+                : (),
+                limit        => $self->{delete_batch},
+                include_docs => 1
+            }
+          )->cb(
             sub {
                 # uncoverable branch true
                 unless ( defined $self ) {
@@ -542,7 +545,7 @@ sub DeleteAnalysis {
                     }
                 );
             }
-        );
+          );
     };
     $analysis->();
     return;
@@ -602,13 +605,16 @@ sub CreateAnalyze {
             }
 
             # uncoverable branch false
-            Lim::DEBUG and $self->{logger}->debug( 'couchdb new_analysis/all ', $analyze{id}, $args{space} ? ' '.$args{space} : '' );
-            $self->{db}->view( 'new_analysis/all', {
-                key => [
-                    $args{space} ? $args{space} : '',
-                    $analyze{id}
-                ]
-            } )->cb(
+            Lim::DEBUG and $self->{logger}->debug( 'couchdb new_analysis/all ', $analyze{id}, $args{space} ? ' ' . $args{space} : '' );
+            $self->{db}->view(
+                'new_analysis/all',
+                {
+                    key => [
+                        $args{space} ? $args{space} : '',
+                        $analyze{id}
+                    ]
+                }
+              )->cb(
                 sub {
                     # uncoverable branch true
                     unless ( defined $self ) {
@@ -671,7 +677,6 @@ sub CreateAnalyze {
                         return;
                     }
 
-
                     $analyze{type} = 'analyze';
 
                     # uncoverable branch false
@@ -716,7 +721,7 @@ sub CreateAnalyze {
                         }
                     );
                 }
-            );
+              );
         }
     );
     return;
@@ -740,15 +745,18 @@ sub ReadAnalyze {
     undef $@;
 
     # uncoverable branch false
-    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id}, $args{space} ? ' '.$args{space} : '' );
-    $self->{db}->view( 'analysis/all', {
-        key => [
-            $args{space} ? $args{space} : '',
-            $args{id},
-            undef
-        ],
-        include_docs => 1
-    } )->cb(
+    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id}, $args{space} ? ' ' . $args{space} : '' );
+    $self->{db}->view(
+        'analysis/all',
+        {
+            key => [
+                $args{space} ? $args{space} : '',
+                $args{id},
+                undef
+            ],
+            include_docs => 1
+        }
+      )->cb(
         sub {
             # uncoverable branch true
             unless ( defined $self ) {
@@ -783,7 +791,7 @@ sub ReadAnalyze {
 
             $args{cb}->( $rows->[0] );
         }
-    );
+      );
     return;
 }
 
@@ -885,15 +893,18 @@ sub DeleteAnalyze {
     undef $@;
 
     # uncoverable branch false
-    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id}, $args{space} ? ' '.$args{space} : '' );
-    $self->{db}->view( 'analysis/all', {
-        key => [
-            $args{space} ? $args{space} : '',
-            $args{id},
-            undef
-        ],
-        include_docs => 1
-    } )->cb(
+    Lim::DEBUG and $self->{logger}->debug( 'couchdb analysis/all ', $args{id}, $args{space} ? ' ' . $args{space} : '' );
+    $self->{db}->view(
+        'analysis/all',
+        {
+            key => [
+                $args{space} ? $args{space} : '',
+                $args{id},
+                undef
+            ],
+            include_docs => 1
+        }
+      )->cb(
         sub {
             # uncoverable branch true
             unless ( defined $self ) {
@@ -956,7 +967,7 @@ sub DeleteAnalyze {
                 }
             );
         }
-    );
+      );
     return;
 }
 
@@ -1032,14 +1043,14 @@ sub HandleResponse {
     if ( $keyskip ) {
         my ( $skip, @key );
 
-        @key = grep { defined $_ && !ref($_) } @{ $data->{rows}->[0]->{key} };
+        @key = grep { defined $_ && !ref( $_ ) } @{ $data->{rows}->[0]->{key} };
         $skip = $keyskip;
         while ( $skip-- ) {
             shift( @key );
         }
         $before = join( $ID_DELIMITER, @key );
 
-        @key = grep { defined $_ && !ref($_) } @{ $data->{rows}->[-1]->{key} };
+        @key = grep { defined $_ && !ref( $_ ) } @{ $data->{rows}->[-1]->{key} };
         $skip = $keyskip;
         while ( $skip-- ) {
             shift( @key );
@@ -1047,8 +1058,8 @@ sub HandleResponse {
         $after = join( $ID_DELIMITER, @key );
     }
     else {
-        $before = join( $ID_DELIMITER, grep { defined $_ && !ref($_) } @{ $data->{rows}->[0]->{key} } );
-        $after  = join( $ID_DELIMITER, grep { defined $_ && !ref($_) } @{ $data->{rows}->[-1]->{key} } );
+        $before = join( $ID_DELIMITER, grep { defined $_ && !ref( $_ ) } @{ $data->{rows}->[0]->{key} } );
+        $after  = join( $ID_DELIMITER, grep { defined $_ && !ref( $_ ) } @{ $data->{rows}->[-1]->{key} } );
     }
 
     return ( $before, $after, $previous, $next, \@rows, $data->{total_rows}, $data->{offset} );

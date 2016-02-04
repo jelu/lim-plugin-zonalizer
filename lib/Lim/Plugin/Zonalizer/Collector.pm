@@ -76,10 +76,10 @@ Local IP address that the test engine should try to send its requests from.
 =cut
 
 has 'sourceaddr' => (
-    is => 'ro',
-    isa => 'Maybe[Str]',
-    required => 0,
-    default => undef,
+    is            => 'ro',
+    isa           => 'Maybe[Str]',
+    required      => 0,
+    default       => undef,
     documentation => 'Local IP address that the test engine should try to send its requests from.',
 );
 
@@ -122,8 +122,8 @@ sub run {
 
     $self->debug and say STDERR 'start';
 
-    if ($self->sourceaddr) {
-        Zonemaster->config->resolver_source($self->sourceaddr);
+    if ( $self->sourceaddr ) {
+        Zonemaster->config->resolver_source( $self->sourceaddr );
     }
 
     if ( $self->policy ) {
@@ -136,7 +136,7 @@ sub run {
 
     my $json = JSON::XS->new->allow_blessed->convert_blessed->canonical;
 
-    my $in_q = Thread::Queue->new;
+    my $in_q  = Thread::Queue->new;
     my $out_q = Thread::Queue->new;
 
     my $threads = $self->threads;
@@ -148,99 +148,107 @@ sub run {
     while ( $threads-- ) {
         $self->debug and say STDERR 'start thread';
 
-        threads->create(sub {
-            $self->debug and say STDERR 'thread started';
-            while ( my $in = $in_q->dequeue ) {
-                $self->debug and say STDERR 'dequeued in';
-                $in = $json->decode($in);
+        threads->create(
+            sub {
+                $self->debug and say STDERR 'thread started';
+                while ( my $in = $in_q->dequeue ) {
+                    $self->debug and say STDERR 'dequeued in';
+                    $in = $json->decode( $in );
 
-                Zonemaster->reset;
+                    Zonemaster->reset;
 
-                Zonemaster->config->ipv4_ok( $in->{ipv4} ? 1 : 0 );
-                Zonemaster->config->ipv6_ok( $in->{ipv6} ? 1 : 0 );
+                    Zonemaster->config->ipv4_ok( $in->{ipv4} ? 1 : 0 );
+                    Zonemaster->config->ipv6_ok( $in->{ipv6} ? 1 : 0 );
 
-                Zonemaster->logger->callback(
-                    sub {
-                        my ( $entry ) = @_;
+                    Zonemaster->logger->callback(
+                        sub {
+                            my ( $entry ) = @_;
 
-                        if ( $numeric{ uc $entry->level } >= $numeric{ DEBUG } ) {
-                            $self->debug and say STDERR 'queued out';
-                            $out_q->enqueue( $json->encode( {
-                                _id       => $in->{id},
-                                timestamp => $entry->timestamp,
-                                module    => $entry->module,
-                                tag       => $entry->tag,
-                                level     => $entry->level,
-                                $entry->args ? ( args => $entry->args ) : ()
-                            } ) );
-                        }
-                    }
-                );
-
-                Zonemaster::Util::info(
-                    MODULE_VERSION => {
-                        module  => 'Zonemaster::Test::Basic',
-                        version => Zonemaster::Test::Basic->version
-                    }
-                );
-                foreach my $mod ( Zonemaster::Test->modules ) {
-                    $mod = 'Zonemaster::Test::'.$mod;
-                    Zonemaster::Util::info(
-                        MODULE_VERSION => {
-                            module  => $mod,
-                            version => $mod->version
+                            if ( $numeric{ uc $entry->level } >= $numeric{DEBUG} ) {
+                                $self->debug and say STDERR 'queued out';
+                                $out_q->enqueue(
+                                    $json->encode(
+                                        {
+                                            _id       => $in->{id},
+                                            timestamp => $entry->timestamp,
+                                            module    => $entry->module,
+                                            tag       => $entry->tag,
+                                            level     => $entry->level,
+                                            $entry->args ? ( args => $entry->args ) : ()
+                                        }
+                                    )
+                                );
+                            }
                         }
                     );
-                }
 
-                my $domain = $self->to_idn( $in->{fqdn} );
-
-                if ( exists $in->{ns} ) {
-                    my %ns;
-                    foreach ( @{ $in->{ns} } ) {
-                        my $idn = $self->to_idn( $_->{fqdn} );
-                        my @ips = ( $_->{ip} );
-
-                        unless ( scalar @ips ) {
-                            push @ips, Net::LDNS->new->name2addr($idn);
+                    Zonemaster::Util::info(
+                        MODULE_VERSION => {
+                            module  => 'Zonemaster::Test::Basic',
+                            version => Zonemaster::Test::Basic->version
                         }
-
-                        push @{ $ns{$idn} }, @ips;
+                    );
+                    foreach my $mod ( Zonemaster::Test->modules ) {
+                        $mod = 'Zonemaster::Test::' . $mod;
+                        Zonemaster::Util::info(
+                            MODULE_VERSION => {
+                                module  => $mod,
+                                version => $mod->version
+                            }
+                        );
                     }
-                    if ( scalar %ns ) {
-                        Zonemaster->add_fake_delegation( $domain => \%ns );
-                    }
-                }
 
-                if ( exists $in->{ds} ) {
-                    Zonemaster->add_fake_ds( $domain => $in->{ds} );
-                }
+                    my $domain = $self->to_idn( $in->{fqdn} );
 
-                if ( exists $in->{test} ) {
-                    foreach ( @{ $in->{test} } ) {
-                        if ( $_->{method} ) {
-                            Zonemaster->test_method( $_->{module}, $_->{method}, Zonemaster->zone( $domain ) );
+                    if ( exists $in->{ns} ) {
+                        my %ns;
+                        foreach ( @{ $in->{ns} } ) {
+                            my $idn = $self->to_idn( $_->{fqdn} );
+                            my @ips = ( $_->{ip} );
+
+                            unless ( scalar @ips ) {
+                                push @ips, Net::LDNS->new->name2addr( $idn );
+                            }
+
+                            push @{ $ns{$idn} }, @ips;
                         }
-                        else {
-                            Zonemaster->test_module( $_->{module}, $domain );
+                        if ( scalar %ns ) {
+                            Zonemaster->add_fake_delegation( $domain => \%ns );
                         }
                     }
-                }
-                else {
-                    Zonemaster->test_zone( $domain );
-                }
 
-                Zonemaster::Util::info( MODULE_END => { module => 'Lim::Plugin::Zonalizer::Collector' } );
+                    if ( exists $in->{ds} ) {
+                        Zonemaster->add_fake_ds( $domain => $in->{ds} );
+                    }
+
+                    if ( exists $in->{test} ) {
+                        foreach ( @{ $in->{test} } ) {
+                            if ( $_->{method} ) {
+                                Zonemaster->test_method( $_->{module}, $_->{method}, Zonemaster->zone( $domain ) );
+                            }
+                            else {
+                                Zonemaster->test_module( $_->{module}, $domain );
+                            }
+                        }
+                    }
+                    else {
+                        Zonemaster->test_zone( $domain );
+                    }
+
+                    Zonemaster::Util::info( MODULE_END => { module => 'Lim::Plugin::Zonalizer::Collector' } );
+                }
             }
-        });
+        );
     }
 
-    threads->create(sub {
-        while ( my $out = $out_q->dequeue ) {
-            $self->debug and say STDERR 'dequeued out';
-            say $out;
+    threads->create(
+        sub {
+            while ( my $out = $out_q->dequeue ) {
+                $self->debug and say STDERR 'dequeued out';
+                say $out;
+            }
         }
-    })->detach;
+    )->detach;
 
     {
         my $json = JSON::XS->new->allow_blessed->convert_blessed->canonical;
@@ -248,14 +256,14 @@ sub run {
         $self->debug and say STDERR 'waiting';
         while ( <STDIN> ) {
             $self->debug and say STDERR 'read: ', $_;
-            my @in = $json->incr_parse($_);
-            foreach my $in (@in) {
-                unless ( $self->validate($in) ) {
+            my @in = $json->incr_parse( $_ );
+            foreach my $in ( @in ) {
+                unless ( $self->validate( $in ) ) {
                     $self->debug and say STDERR 'invalid in';
                     next;
                 }
                 $self->debug and say STDERR 'queued in';
-                $in_q->enqueue($json->encode($in));
+                $in_q->enqueue( $json->encode( $in ) );
             }
         }
     }
@@ -307,7 +315,7 @@ Validates an input object.
 sub validate {
     my ( $self, $in ) = @_;
 
-    unless ( ref($in) eq 'HASH' ) {
+    unless ( ref( $in ) eq 'HASH' ) {
         return;
     }
     foreach ( qw(id fqdn ipv4 ipv6) ) {

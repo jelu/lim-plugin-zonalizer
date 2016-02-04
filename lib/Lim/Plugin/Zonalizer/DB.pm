@@ -7,7 +7,7 @@ use Carp;
 use Log::Log4perl ();
 use Scalar::Util qw(weaken);
 
-use Lim                    ();
+use Lim ();
 use Lim::Plugin::Zonalizer qw(:status);
 
 =encoding utf8
@@ -387,11 +387,9 @@ sub ValidateAnalyze {
         }
     }
     if ( exists $analyze->{results} ) {
-        eval {
-            $self->ValidateResults( $analyze->{results} );
-        };
+        eval { $self->ValidateResults( $analyze->{results} ); };
         if ( $@ ) {
-            confess 'analyze->results is invalid: '.$@;
+            confess 'analyze->results is invalid: ' . $@;
         }
     }
     if ( exists $analyze->{ns} ) {
@@ -401,16 +399,16 @@ sub ValidateAnalyze {
         my $count = 1;
         foreach my $ns ( @{ $analyze->{ns} } ) {
             unless ( ref( $ns ) eq 'HASH' ) {
-                confess 'analyze->ns['.$count.'] is not HASH';
+                confess 'analyze->ns[' . $count . '] is not HASH';
             }
             foreach ( qw(fqdn) ) {
                 unless ( defined $ns->{$_} ) {
-                    confess 'analyze->ns['.$count.']->' . $_ . ' is not defined';
+                    confess 'analyze->ns[' . $count . ']->' . $_ . ' is not defined';
                 }
             }
             foreach ( qw(ip) ) {
                 if ( exists $ns->{$_} and !defined $ns->{$_} ) {
-                    confess 'analyze->ns['.$count.']->' . $_ . ' is not defined';
+                    confess 'analyze->ns[' . $count . ']->' . $_ . ' is not defined';
                 }
             }
             $count++;
@@ -423,11 +421,11 @@ sub ValidateAnalyze {
         my $count = 1;
         foreach my $ds ( @{ $analyze->{ds} } ) {
             unless ( ref( $ds ) eq 'HASH' ) {
-                confess 'analyze->ds['.$count.'] is not HASH';
+                confess 'analyze->ds[' . $count . '] is not HASH';
             }
             foreach ( qw(keytag algorithm type digest) ) {
                 unless ( defined $ds->{$_} ) {
-                    confess 'analyze->ds['.$count.']->' . $_ . ' is not defined';
+                    confess 'analyze->ds[' . $count . ']->' . $_ . ' is not defined';
                 }
             }
             $count++;
@@ -440,11 +438,11 @@ sub ValidateAnalyze {
         my $count = 1;
         foreach my $meta_data ( @{ $analyze->{meta_data} } ) {
             unless ( ref( $meta_data ) eq 'HASH' ) {
-                confess 'analyze->meta_data['.$count.'] is not HASH';
+                confess 'analyze->meta_data[' . $count . '] is not HASH';
             }
             foreach ( qw(key value) ) {
                 unless ( defined $meta_data->{$_} ) {
-                    confess 'analyze->meta_data['.$count.']->' . $_ . ' is not defined';
+                    confess 'analyze->meta_data[' . $count . ']->' . $_ . ' is not defined';
                 }
             }
             $count++;
@@ -473,11 +471,9 @@ sub ValidateResults {
     }
     my $count = 1;
     foreach ( @$results ) {
-        eval {
-            $self->ValidateResult( $_ );
-        };
+        eval { $self->ValidateResult( $_ ); };
         if ( $@ ) {
-            confess 'result['.$count.'] is invalid: '.$@;
+            confess 'result[' . $count . '] is invalid: ' . $@;
         }
         $count++;
     }

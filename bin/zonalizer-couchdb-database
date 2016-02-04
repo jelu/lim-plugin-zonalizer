@@ -9,29 +9,29 @@ use JSON;
 use OSSP::uuid;
 use Getopt::Long;
 
-STDOUT->autoflush(1);
+STDOUT->autoflush( 1 );
 
-my $drop = 0;
+my $drop   = 0;
 my $create = 0;
-my $test = 0;
-my $debug = 0;
-my $read = 50;
+my $test   = 0;
+my $debug  = 0;
+my $read   = 50;
 my $update = 25;
 
 GetOptions(
-    'drop' => \$drop,
-    'create' => \$create,
-    'test' => \$test,
-    'debug' => \$debug,
-    'read:i' => \$read,
+    'drop'     => \$drop,
+    'create'   => \$create,
+    'test'     => \$test,
+    'debug'    => \$debug,
+    'read:i'   => \$read,
     'update:i' => \$update,
 );
 
-$read += 0;
+$read   += 0;
 $update += 0;
 
 unless ( $ARGV[0] and $read > 0 and $update > 0 ) {
-    die 'usage: zonalizer-couchdb-database [--drop|--create|--test|--debug|--read <num>|--update <num>] <uri>'
+    die 'usage: zonalizer-couchdb-database [--drop|--create|--test|--debug|--read <num>|--update <num>] <uri>';
 }
 
 my $JSON = JSON->new;
@@ -44,47 +44,50 @@ if ( $drop or $create ) {
     $db->create->recv;
 }
 
-foreach ( keys %{schema()} ) {
+foreach ( keys %{ schema() } ) {
     if ( $drop or $create ) {
         say 'Creating ', $_;
     }
     else {
         my $doc;
-        eval {
-            $doc = req( GET => $_ )->recv;
-        };
+        eval { $doc = req( GET => $_ )->recv; };
 
         unless ( $@ ) {
             say 'Recreating ', $_;
 
-            $doc = $JSON->decode($doc);
-            unless ( ref($doc) eq 'HASH' and $doc->{_rev} ) {
+            $doc = $JSON->decode( $doc );
+            unless ( ref( $doc ) eq 'HASH' and $doc->{_rev} ) {
                 die 'Unexpected return or missing data from CouchDB when reading design';
             }
-            req( DELETE => $_.'?rev='.$doc->{_rev} )->recv;
+            req( DELETE => $_ . '?rev=' . $doc->{_rev} )->recv;
         }
         undef $@;
     }
-    req( PUT => $_, $JSON->encode( {
-        %{ schema()->{$_} },
-        _id => $_
-    } ) )->recv;
+    req(
+        PUT => $_,
+        $JSON->encode(
+            {
+                %{ schema()->{$_} },
+                _id => $_
+            }
+        )
+    )->recv;
 }
 
 !$debug and print 'Checking objects ...';
-my $skip = 0;
+my $skip       = 0;
 my $total_rows = 0;
-my $changed = 0;
+my $changed    = 0;
 my @update;
 
 while ( 1 ) {
-    $debug and say '_design/analysis/_view/id?include_docs=true&limit='.$read.'&skip='.$skip;
-    my $list = req( GET => '_design/analysis/_view/id?include_docs=true&limit='.$read.'&skip='.$skip )->recv;
+    $debug and say '_design/analysis/_view/id?include_docs=true&limit=' . $read . '&skip=' . $skip;
+    my $list = req( GET => '_design/analysis/_view/id?include_docs=true&limit=' . $read . '&skip=' . $skip )->recv;
     $list = $JSON->decode( $list );
-    unless ( ref($list) eq 'HASH'
+    unless (ref( $list ) eq 'HASH'
         and defined $list->{total_rows}
         and defined $list->{offset}
-        and ref($list->{rows}) eq 'ARRAY' )
+        and ref( $list->{rows} ) eq 'ARRAY' )
     {
         die 'Unexpected return or missing data from CouchDB when listing analysis';
     }
@@ -94,25 +97,25 @@ while ( 1 ) {
     }
 
     my @docs;
-    foreach ( @{$list->{rows}}) {
-        unless ( ref($_) eq 'HASH'
+    foreach ( @{ $list->{rows} } ) {
+        unless (ref( $_ ) eq 'HASH'
             and defined $_->{id}
-            and ref( $_->{doc}) eq 'HASH' )
+            and ref( $_->{doc} ) eq 'HASH' )
         {
             die 'Unexpected return or missing data from CouchDB when reading list of analysis';
         }
 
         $debug and say 'fetched ', $_->{id};
-        push(@docs, $_->{doc});
+        push( @docs, $_->{doc} );
     }
 
-    foreach (@docs) {
+    foreach ( @docs ) {
         if ( check( $_ ) ) {
             $debug and say 'saving changes on ', $_->{_id};
-            push(@update, $_);
+            push( @update, $_ );
             $changed++;
 
-            if (scalar @update == $update) {
+            if ( scalar @update == $update ) {
                 $db->bulk_docs( \@update )->recv;
                 @update = ();
             }
@@ -128,7 +131,7 @@ while ( 1 ) {
     }
 }
 
-if (scalar @update) {
+if ( scalar @update ) {
     $db->bulk_docs( \@update )->recv;
 }
 
@@ -141,8 +144,8 @@ sub check {
     my ( $doc ) = @_;
     my $changed = 0;
 
-    if ( ref($doc->{results}) eq 'ARRAY' ) {
-        foreach ( @{$doc->{results}}) {
+    if ( ref( $doc->{results} ) eq 'ARRAY' ) {
+        foreach ( @{ $doc->{results} } ) {
             if ( exists $_->{message} ) {
                 delete $_->{message};
                 $changed = 1;
@@ -217,16 +220,16 @@ function (doc) {
 '
                 },
                 map( {
-                    'by_' . $_ => {
-                        map => '
+                        'by_' . $_ => {
+                            map => '
 function (doc) {
     if (doc.type == "analyze") {
         emit([doc.space, doc.' . $_ . ', doc.id, null]);
     }
 }
 '
-                      }
-                } ( qw(fqdn created updated) ) ),
+                        }
+                    } ( qw(fqdn created updated) ) ),
                 fqdn => {
                     map => '
 function (doc) {
@@ -237,16 +240,16 @@ function (doc) {
 '
                 },
                 map( {
-                    'fqdn_by_' . $_ => {
-                        map => '
+                        'fqdn_by_' . $_ => {
+                            map => '
 function (doc) {
     if (doc.type == "analyze") {
         emit([doc.space, [doc.fqdn, null], doc.' . $_ . ', doc.id, null]);
     }
 }
 '
-                      }
-                } ( qw(created updated) ) ),
+                        }
+                    } ( qw(created updated) ) ),
                 rfqdn => {
                     map => '
 function (doc) {
@@ -264,8 +267,8 @@ function (doc) {
 '
                 },
                 map( {
-                    'rfqdn_by_' . $_ => {
-                        map => '
+                        'rfqdn_by_' . $_ => {
+                            map => '
 function (doc) {
     if (doc.type == "analyze") {
         var key = doc.fqdn.split(/\./).reverse(), i, s = "";
@@ -280,7 +283,7 @@ function (doc) {
     }
 }
 '
-                      }
+                        }
                 } ( qw(fqdn created updated) ) )
             }
         }
@@ -293,14 +296,14 @@ sub req {
 
     http_request(
         $method => $db->uri . $path,
-        headers => $db->_build_headers( {
-            $method eq 'POST' || $method eq 'PUT'
-            ? (
-                'Content-Type' => 'application/json'
-            )
-            : (),
-        } ),
-        body    => $body,
+        headers => $db->_build_headers(
+            {
+                $method eq 'POST' || $method eq 'PUT'
+                ? ( 'Content-Type' => 'application/json' )
+                : (),
+            }
+        ),
+        body => $body,
         sub {
             my ( $body, $headers ) = @_;
             if ( $headers->{Status} >= 200 and $headers->{Status} < 400 ) {
