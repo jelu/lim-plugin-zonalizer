@@ -9,7 +9,7 @@ use Lim::Plugin::Zonalizer qw(:err :status);
 
 use Lim              ();
 use Lim::Error       ();
-use OSSP::uuid       ();
+use Data::UUID       ();
 use MIME::Base64     ();
 use AnyEvent         ();
 use AnyEvent::Handle ();
@@ -1069,9 +1069,7 @@ sub CreateAnalyze {
     $fqdn =~ s/\.$//o;
     $fqdn .= '.';
 
-    my $uuid = OSSP::uuid->new;
-    $uuid->make( 'v4' );
-    my $id = MIME::Base64::encode_base64url( $uuid->export( 'bin' ) );
+    my $id = MIME::Base64::encode_base64url( Data::UUID->new->create );
 
     if ( exists $TEST{$id} ) {
         $STAT{api}->{errors}++;
