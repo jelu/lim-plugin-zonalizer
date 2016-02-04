@@ -221,7 +221,7 @@ sub Calls {
                 'policies/name=[\w-]+ => ReadPolicy version=1'
             ]
         },
-        Create1 => { uri_map => [ 'analysis => CreateAnalyze version=1' ] },
+        Create1 => { uri_map => ['analysis => CreateAnalyze version=1'] },
         Update1 => { uri_map => [] },
         Delete1 => {
             uri_map => [

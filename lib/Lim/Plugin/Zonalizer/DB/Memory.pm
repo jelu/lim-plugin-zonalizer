@@ -98,7 +98,7 @@ sub ReadAnalysis {
         }
     }
 
-    my $space = $q->{space} ? $q->{space} : '';
+    my $space = $args{space} ? $args{space} : '';
     if ( $space and !exists $self->{space}->{$space} ) {
         $self->{space}->{''}->{analysis}      = [];
         $self->{space}->{''}->{analyze}       = {};
@@ -221,7 +221,7 @@ sub DeleteAnalysis {
     }
     undef $@;
 
-    my $space = $q->{space} ? $q->{space} : '';
+    my $space = $args{space} ? $args{space} : '';
     if ( $space and !exists $self->{space}->{$space} ) {
         $self->{space}->{''}->{analysis}      = [];
         $self->{space}->{''}->{analyze}       = {};
@@ -264,7 +264,7 @@ sub CreateAnalyze {
         return;
     }
 
-    my $space = $q->{space} ? $q->{space} : '';
+    my $space = $args{space} ? $args{space} : '';
     if ( $space and !exists $self->{space}->{$space} ) {
         $self->{space}->{''}->{analysis}      = [];
         $self->{space}->{''}->{analyze}       = {};
@@ -307,7 +307,7 @@ sub ReadAnalyze {
     }
     undef $@;
 
-    my $space = $q->{space} ? $q->{space} : '';
+    my $space = $args{space} ? $args{space} : '';
     if ( $space and !exists $self->{space}->{$space} ) {
         $self->{space}->{''}->{analysis}      = [];
         $self->{space}->{''}->{analyze}       = {};
@@ -338,7 +338,7 @@ sub UpdateAnalyze {
     $self->ValidateAnalyze( $args{analyze} );
     undef $@;
 
-    my $space = $q->{space} ? $q->{space} : '';
+    my $space = $args{space} ? $args{space} : '';
     if ( $space and !exists $self->{space}->{$space} ) {
         $self->{space}->{''}->{analysis}      = [];
         $self->{space}->{''}->{analyze}       = {};
@@ -389,7 +389,7 @@ sub DeleteAnalyze {
     }
     undef $@;
 
-    my $space = $q->{space} ? $q->{space} : '';
+    my $space = $args{space} ? $args{space} : '';
     if ( $space and !exists $self->{space}->{$space} ) {
         $self->{space}->{''}->{analysis}      = [];
         $self->{space}->{''}->{analyze}       = {};

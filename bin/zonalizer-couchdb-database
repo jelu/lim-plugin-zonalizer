@@ -1,5 +1,9 @@
 #!/usr/bin/env perl
 
+=encoding utf8
+
+=cut
+
 use common::sense;
 
 use AnyEvent;

@@ -461,6 +461,8 @@ Validate a set of result objects and confess if there are any problems.
 
 An array ref with the result objects to validate.
 
+=back
+
 =cut
 
 sub ValidateResults {
@@ -489,6 +491,8 @@ Validate a result object and confess if there are any problems.
 =item $result
 
 The result object to validate.
+
+=back
 
 =cut
 

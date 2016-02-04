@@ -14,8 +14,18 @@ bin/zonalizer-couchdb-database
 
 Makefile.PL
 MANIFEST			This list of files
-README
+MANIFEST.SKIP
+README.md
+COUCHDB.md
+DEVELOPMENT.md
+
 t/00-load.t
+t/boilerplate.t
+t/critic.bin.t
+t/critic.t
 t/manifest.t
+t/perlcriticrc
+t/perltidyrc
 t/pod-coverage.t
 t/pod.t
+t/tidy.t
