@@ -20,7 +20,7 @@ WriteMakefile(
             BUILD_REQUIRES => {
                 'Test::More'        => 0,
                 'common::sense'     => 3,
-                'Lim'               => 0.16,
+                'Lim'               => 0.20,
                 'Getopt::Long'      => 2.38,
                 'Scalar::Util'      => 1,
                 'URI::Escape::XS'   => 0.11,
@@ -37,7 +37,7 @@ WriteMakefile(
             },
             PREREQ_PM => {
                 'common::sense'     => 3,
-                'Lim'               => 0.16,
+                'Lim'               => 0.20,
                 'Getopt::Long'      => 2.38,
                 'Scalar::Util'      => 1,
                 'URI::Escape::XS'   => 0.11,
@@ -57,7 +57,7 @@ WriteMakefile(
             PREREQ_PM => {
                 'Test::More'        => 0,
                 'common::sense'     => 3,
-                'Lim'               => 0.16,
+                'Lim'               => 0.20,
                 'Getopt::Long'      => 2.38,
                 'Scalar::Util'      => 1,
                 'URI::Escape::XS'   => 0.11,

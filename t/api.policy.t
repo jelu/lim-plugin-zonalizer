@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use Test::More;
 use Log::Log4perl;
-use EV;
 use AnyEvent;
 
 Log::Log4perl->init(
