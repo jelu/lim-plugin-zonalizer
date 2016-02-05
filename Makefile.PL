@@ -32,7 +32,8 @@ WriteMakefile(
                 'HTTP::Status'      => 0,
                 'JSON::XS'          => 0,
                 'Zonemaster'        => 0,
-                'Net::LDNS'         => 0,
+                'MooseX::Getopt'    => 0,
+                'Net::LDNS'         => 0.75,
             },
             PREREQ_PM => {
                 'common::sense'     => 3,
@@ -48,7 +49,8 @@ WriteMakefile(
                 'HTTP::Status'      => 0,
                 'JSON::XS'          => 0,
                 'Zonemaster'        => 0,
-                'Net::LDNS'         => 0,
+                'MooseX::Getopt'    => 0,
+                'Net::LDNS'         => 0.75,
             }
           )
         : (
@@ -67,7 +69,8 @@ WriteMakefile(
                 'HTTP::Status'      => 0,
                 'JSON::XS'          => 0,
                 'Zonemaster'        => 0,
-                'Net::LDNS'         => 0,
+                'MooseX::Getopt'    => 0,
+                'Net::LDNS'         => 0.75,
             }
         )
     ),
