@@ -831,6 +831,10 @@ Meta data supplied is invalid.
 
 The requested policy was not found.
 
+#### invalid_api_version
+
+The API version given is invalid.
+
 ### HTTP Errors
 
 These are the HTTP status errors returned, additional errors may be returned

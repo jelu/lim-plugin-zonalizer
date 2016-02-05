@@ -180,6 +180,9 @@ sub Init {
                     if ( exists $self->{collector_policy}->{ $policy->{name} } ) {
                         confess 'Configuration for collector->policies[' . $count . '] is wrong, policy ' . $policy->{name} . ' already exists';
                     }
+                    if ( $policy->{exec} and !-x $policy->{exec} ) {
+                        confess 'Configuration for collector->policies[' . $count . '] is wrong, ' . $policy->{exec} . ' is not an executable';
+                    }
 
                     $self->{collector_policy}->{ $policy->{name} } = $policy;
                     $count++;
@@ -208,7 +211,7 @@ sub Init {
         confess 'Configuration error: max_ongoing must be 1 or greater';
     }
     unless ( -x $self->{collector}->{exec} ) {
-        confess 'Configuration error: collector->exec is not an executable';
+        confess 'Configuration error: collector->exec ' . $self->{collector}->{exec} . ' is not an executable';
     }
     unless ( $self->{collector}->{threads} > 0 ) {
         confess 'Configuration error: collector->threads must be 1 or greater';
@@ -341,7 +344,13 @@ sub Read1 {
     #
 
     $STAT{api}->{errors}++;
-    $self->Error( $cb );
+    $self->Error(
+        $cb,
+        Lim::Error->new(
+            module  => $self,
+            code    => HTTP::Status::HTTP_BAD_REQUEST
+        )
+    );
     return;
 }
 
@@ -359,7 +368,13 @@ sub Create1 {
     #
 
     $STAT{api}->{errors}++;
-    $self->Error( $cb );
+    $self->Error(
+        $cb,
+        Lim::Error->new(
+            module  => $self,
+            code    => HTTP::Status::HTTP_BAD_REQUEST
+        )
+    );
     return;
 }
 
@@ -377,7 +392,13 @@ sub Update1 {
     #
 
     $STAT{api}->{errors}++;
-    $self->Error( $cb );
+    $self->Error(
+        $cb,
+        Lim::Error->new(
+            module  => $self,
+            code    => HTTP::Status::HTTP_BAD_REQUEST
+        )
+    );
     return;
 }
 
@@ -395,7 +416,13 @@ sub Delete1 {
     #
 
     $STAT{api}->{errors}++;
-    $self->Error( $cb );
+    $self->Error(
+        $cb,
+        Lim::Error->new(
+            module  => $self,
+            code    => HTTP::Status::HTTP_BAD_REQUEST
+        )
+    );
     return;
 }
 
@@ -406,6 +433,19 @@ sub Delete1 {
 sub ReadVersion {
     my ( $self, $cb, $q ) = @_;
     $STAT{api}->{requests}++;
+
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
 
     my @tests = (
         {
@@ -445,6 +485,19 @@ sub ReadStatus {
     my ( $self, $cb, $q ) = @_;
     $STAT{api}->{requests}++;
 
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
+
     $self->Successful( $cb, \%STAT );
     return;
 }
@@ -458,6 +511,19 @@ sub ReadAnalysis {
     my $real_self = $self;
     weaken( $self );
     $STAT{api}->{requests}++;
+
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
 
     if ( exists $q->{search} and ( !defined $q->{search} || $q->{search} !~ /^(?:(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?|\.)|\.(?:[a-zA-Z0-9-]+\.)*(?:[a-zA-Z0-9-]+\.?))$/o ) ) {
         $STAT{api}->{errors}++;
@@ -743,6 +809,19 @@ sub DeleteAnalysis {
     weaken( $self );
     $STAT{api}->{requests}++;
 
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
+
     $self->{db}->DeleteAnalysis(
         $q->{space} ? ( space => $q->{space} ) : (),
         cb => sub {
@@ -800,6 +879,19 @@ sub CreateAnalyze {
     my $real_self = $self;
     weaken( $self );
     $STAT{api}->{requests}++;
+
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
 
     if ( $STAT{analysis}->{ongoing} >= $self->{max_ongoing} ) {
         $STAT{api}->{errors}++;
@@ -1264,6 +1356,19 @@ sub ReadAnalyze {
     weaken( $self );
     $STAT{api}->{requests}++;
 
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
+
     #
     # Set base url if configured/requested.
     #
@@ -1527,6 +1632,19 @@ sub ReadAnalyzeStatus {
     weaken( $self );
     $STAT{api}->{requests}++;
 
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
+
     #
     # Check for analyze in memory.
     #
@@ -1645,6 +1763,19 @@ sub DeleteAnalyze {
     weaken( $self );
     $STAT{api}->{requests}++;
 
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
+
     if ( exists $TEST{ $q->{id} } ) {
         if ( $q->{space} ) {
             unless ( exists $TEST_SPACE{ $q->{id} }
@@ -1740,6 +1871,19 @@ sub ReadPolicies {
     weaken( $self );
     $STAT{api}->{requests}++;
 
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
+
     my @policies;
 
     foreach ( values %{ $self->{collector_policy} } ) {
@@ -1766,6 +1910,19 @@ sub ReadPolicy {
     my $real_self = $self;
     weaken( $self );
     $STAT{api}->{requests}++;
+
+    unless ( $q->{version} == 1 ) {
+        $STAT{api}->{errors}++;
+        $self->Error(
+            $cb,
+            Lim::Error->new(
+                module  => $self,
+                code    => HTTP::Status::HTTP_BAD_REQUEST,
+                message => ERR_INVALID_API_VERSION
+            )
+        );
+        return;
+    }
 
     if ( $q->{name} and !exists $self->{collector_policy}->{ $q->{name} } ) {
         $STAT{api}->{errors}++;
