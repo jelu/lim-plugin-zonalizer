@@ -347,8 +347,8 @@ sub Read1 {
     $self->Error(
         $cb,
         Lim::Error->new(
-            module  => $self,
-            code    => HTTP::Status::HTTP_BAD_REQUEST
+            module => $self,
+            code   => HTTP::Status::HTTP_BAD_REQUEST
         )
     );
     return;
@@ -371,8 +371,8 @@ sub Create1 {
     $self->Error(
         $cb,
         Lim::Error->new(
-            module  => $self,
-            code    => HTTP::Status::HTTP_BAD_REQUEST
+            module => $self,
+            code   => HTTP::Status::HTTP_BAD_REQUEST
         )
     );
     return;
@@ -395,8 +395,8 @@ sub Update1 {
     $self->Error(
         $cb,
         Lim::Error->new(
-            module  => $self,
-            code    => HTTP::Status::HTTP_BAD_REQUEST
+            module => $self,
+            code   => HTTP::Status::HTTP_BAD_REQUEST
         )
     );
     return;
@@ -419,8 +419,8 @@ sub Delete1 {
     $self->Error(
         $cb,
         Lim::Error->new(
-            module  => $self,
-            code    => HTTP::Status::HTTP_BAD_REQUEST
+            module => $self,
+            code   => HTTP::Status::HTTP_BAD_REQUEST
         )
     );
     return;

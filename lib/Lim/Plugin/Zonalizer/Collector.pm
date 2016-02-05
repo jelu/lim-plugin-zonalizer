@@ -223,7 +223,7 @@ sub process {
         confess;
     }
     if ( $can_use_threads ) {
-        unless ( blessed $out_q and $out_q->isa('Thread::Queue') ) {
+        unless ( blessed $out_q and $out_q->isa( 'Thread::Queue' ) ) {
             confess;
         }
     }

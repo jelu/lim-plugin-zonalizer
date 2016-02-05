@@ -20,7 +20,15 @@ COUCHDB.md
 DEVELOPMENT.md
 
 t/00-load.t
+t/api.analysis.t
+t/api.analyze.t
+t/api.crud.t
+t/api.policies.t
+t/api.policy.t
+t/api.status.t
+t/api.version.t
 t/boilerplate.t
+t/collectors/do_nothing
 t/critic.bin.t
 t/critic.t
 t/manifest.t
@@ -28,4 +36,5 @@ t/perlcriticrc
 t/perltidyrc
 t/pod-coverage.t
 t/pod.t
+t/tidy.bin.t
 t/tidy.t
