@@ -223,13 +223,11 @@ sub ReadAnalysis {
         }
     }
 
-    if ( $args{space} ) {
-        unless ( $option{startkey} ) {
-            $option{startkey} = [ $args{space} ? $args{space} : '', $option{descending} ? ( {} ) : () ];
-        }
-        unless ( $option{endkey} ) {
-            $option{endkey} = [ $args{space} ? $args{space} : '', $option{descending} ? () : ( {} ) ];
-        }
+    unless ( $option{startkey} ) {
+        $option{startkey} = [ $args{space} ? $args{space} : '', $option{descending} ? ( {} ) : () ];
+    }
+    unless ( $option{endkey} ) {
+        $option{endkey} = [ $args{space} ? $args{space} : '', $option{descending} ? () : ( {} ) ];
     }
 
     # uncoverable branch false
