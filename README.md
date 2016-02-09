@@ -883,9 +883,9 @@ TODO
 
 # LICENSE AND COPYRIGHT
 
-Copyright 2015 Jerry Lundström
+Copyright 2015-2016 Jerry Lundström
 
-Copyright 2015 IIS (The Internet Foundation in Sweden)
+Copyright 2015-2016 IIS (The Internet Foundation in Sweden)
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
