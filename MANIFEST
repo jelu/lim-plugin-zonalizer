@@ -20,7 +20,13 @@ COUCHDB.md
 DEVELOPMENT.md
 
 t/00-load.t
+t/api.analysis.couchdb.json
+t/api.analysis.memory.json
+t/api.analysis.results.json
 t/api.analysis.t
+t/api.analyze.couchdb.json
+t/api.analyze.memory.json
+t/api.analyze.results.json
 t/api.analyze.t
 t/api.crud.t
 t/api.policies.t

@@ -1,2 +1,8 @@
 usr/share/perl5/Lim/Plugin/Zonalizer/Server.pm
+usr/share/perl5/Lim/Plugin/Zonalizer/DB.pm
+usr/share/perl5/Lim/Plugin/Zonalizer/DB/Memory.pm
+usr/share/perl5/Lim/Plugin/Zonalizer/Collector.pm
 usr/share/man/man3/Lim::Plugin::Zonalizer::Server.3pm
+usr/share/man/man3/Lim::Plugin::Zonalizer::DB.3pm
+usr/share/man/man3/Lim::Plugin::Zonalizer::DB::Memory.3pm
+usr/share/man/man3/Lim::Plugin::Zonalizer::Collector.3pm

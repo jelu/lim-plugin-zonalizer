@@ -19,7 +19,7 @@ Description: Common perl libraries for Zonalizer Lim plugin
 Package: liblim-plugin-zonalizer-server-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
- liblim-plugin-zonalizer-common-perl (= 0.10-1~unstable+1),
+ liblim-plugin-zonalizer-common-perl (= 0.9901-1~unstable+1),
  liblim-server-perl (>= 0.20)
 Description: Server perl libraries for Zonalizer Lim plugin
  Server perl libraries for Zonalizer Lim plugin.
@@ -27,7 +27,7 @@ Description: Server perl libraries for Zonalizer Lim plugin
 Package: liblim-plugin-zonalizer-client-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
- liblim-plugin-zonalizer-common-perl (= 0.10-1~unstable+1)
+ liblim-plugin-zonalizer-common-perl (= 0.9901-1~unstable+1)
 Description: Client perl libraries for Zonalizer Lim plugin
  Client perl libraries for communicating with the Zonalizer Lim plugin.
 
@@ -35,6 +35,13 @@ Package: liblim-plugin-zonalizer-cli-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
  liblim-cli-perl (>= 0.20),
- liblim-plugin-zonalizer-client-perl (= 0.10-1~unstable+1)
+ liblim-plugin-zonalizer-client-perl (= 0.9901-1~unstable+1)
 Description: CLI perl libraries for Zonalizer Lim plugin
  CLI perl libraries for communicating with the Zonalizer Lim plugin.
+
+Package: liblim-plugin-zonalizer-db-couchdb-perl
+Architecture: all
+Depends: ${misc:Depends}, ${perl:Depends},
+ liblim-plugin-zonalizer-server-perl (= 0.9901-1~unstable+1)
+Description: CouchDB support for Zonalizer Lim plugin
+ CouchDB support for Zonalizer Lim plugin.
