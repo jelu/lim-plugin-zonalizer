@@ -6,3 +6,7 @@ usr/share/man/man3/Lim::Plugin::Zonalizer::Server.3pm
 usr/share/man/man3/Lim::Plugin::Zonalizer::DB.3pm
 usr/share/man/man3/Lim::Plugin::Zonalizer::DB::Memory.3pm
 usr/share/man/man3/Lim::Plugin::Zonalizer::Collector.3pm
+usr/share/man/man1/zonalizer-collector.1p
+usr/share/man/man1/zonalizer-couchdb-database.1p
+usr/bin/zonalizer-couchdb-database
+usr/bin/zonalizer-collector

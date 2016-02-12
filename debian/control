@@ -20,7 +20,8 @@ Package: liblim-plugin-zonalizer-server-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
  liblim-plugin-zonalizer-common-perl (= 0.9901-1~unstable+1),
- liblim-server-perl (>= 0.20)
+ liblim-server-perl (>= 0.20), libanyevent-perl, libossp-uuid-perl,
+ libjson-xs-perl, liburi-escape-xs-perl, libzonemaster-perl
 Description: Server perl libraries for Zonalizer Lim plugin
  Server perl libraries for Zonalizer Lim plugin.
 
@@ -42,6 +43,7 @@ Description: CLI perl libraries for Zonalizer Lim plugin
 Package: liblim-plugin-zonalizer-db-couchdb-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
- liblim-plugin-zonalizer-server-perl (= 0.9901-1~unstable+1)
+ liblim-plugin-zonalizer-server-perl (= 0.9901-1~unstable+1),
+ libanyevent-couchdb-perl, libanyevent-http-perl, liburi-escape-xs-perl
 Description: CouchDB support for Zonalizer Lim plugin
  CouchDB support for Zonalizer Lim plugin.
