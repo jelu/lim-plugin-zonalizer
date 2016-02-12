@@ -15,51 +15,64 @@ use Getopt::Long;
 
 STDOUT->autoflush( 1 );
 
-my $drop   = 0;
-my $create = 0;
-my $test   = 0;
-my $debug  = 0;
-my $read   = 50;
-my $update = 25;
+my $drop    = 0;
+my $create  = 0;
+my $upgrade = 0;
+my $debug   = 0;
+my $read    = 50;
+my $update  = 25;
 my $load;
+my $soft;
 
 GetOptions(
     'drop'     => \$drop,
     'create'   => \$create,
-    'test'     => \$test,
+    'upgrade'  => \$upgrade,
     'debug'    => \$debug,
     'read:i'   => \$read,
     'update:i' => \$update,
     'load:s'   => \$load,
+    'soft'     => \$soft,
 );
 
 $read   += 0;
 $update += 0;
 
 unless ( $ARGV[0] and $read > 0 and $update > 0 ) {
-    die 'usage: zonalizer-couchdb-database [--drop|--create|--test|--debug|--read <num>|--update <num>] <uri>';
+    die 'usage: zonalizer-couchdb-database [--drop|--create|--upgrade|--soft|--debug|--read <num>|--update <num>] <uri>';
 }
 
 my $JSON = JSON->new->utf8;
 my $db   = couchdb( $ARGV[0] );
 
 if ( $drop ) {
-    $db->drop->recv;
+    eval {
+        $db->drop->recv;
+    };
+    if ( $@ and !$soft ) {
+        die $@;
+    }
+    undef $@;
+
     unless ( $create ) {
         say 'Dropped database';
         exit;
     }
 }
 if ( $create ) {
-    $db->create->recv;
+    eval {
+        $db->create->recv;
+    };
+    if ( $@ and !$soft ) {
+        die $@;
+    }
+    undef $@;
 }
 
 foreach ( keys %{ schema() } ) {
-    if ( $drop or $create ) {
-        say 'Creating ', $_;
-    }
-    else {
-        my $doc;
+    my $doc;
+
+    if ( !$create or $soft ) {
         eval { $doc = req( GET => $_ )->recv; };
 
         unless ( $@ ) {
@@ -67,12 +80,17 @@ foreach ( keys %{ schema() } ) {
 
             $doc = $JSON->decode( $doc );
             unless ( ref( $doc ) eq 'HASH' and $doc->{_rev} ) {
-                die 'Unexpected return or missing data from CouchDB when reading design';
+                die 'Unexpected return or missing data from CouchDB when reading design for ' . $_;
             }
             req( DELETE => $_ . '?rev=' . $doc->{_rev} )->recv;
         }
         undef $@;
     }
+
+    unless ( $doc ) {
+        say 'Creating ', $_;
+    }
+
     req(
         PUT => $_,
         $JSON->encode(
@@ -94,6 +112,10 @@ if ( $load ) {
     }
 
     close( LOAD );
+}
+
+unless ( $upgrade ) {
+    exit;
 }
 
 !$debug and print 'Checking objects ...';
