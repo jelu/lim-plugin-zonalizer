@@ -6,7 +6,7 @@ Build-Depends-Indep: libcommon-sense-perl (>= 3), perl,
  liblim-server-perl (>= 0.20), liblim-cli-perl (>= 0.20), libanyevent-perl,
  libossp-uuid-perl | libdata-uuid-perl, libjson-perl, libjson-xs-perl,
  liburi-escape-xs-perl, libzonemaster-perl, libanyevent-couchdb-perl,
- libanyevent-http-perl, libmoosex-getopt-perl
+ libanyevent-http-perl, libmoosex-getopt-perl, language-pack-en
 Maintainer: Jerry Lundström <lundstrom.jerry@gmail.com>
 Standards-Version: 3.9.1
 Homepage: http://your.homepage.com
@@ -24,7 +24,8 @@ Depends: ${misc:Depends}, ${perl:Depends},
  liblim-plugin-zonalizer-common-perl (= 0.9901-1~unstable+1),
  liblim-server-perl (>= 0.20), libanyevent-perl,
  libossp-uuid-perl | libdata-uuid-perl, libjson-perl, libjson-xs-perl,
- liburi-escape-xs-perl, libzonmaster-perl, libmoosex-getopt-perl
+ liburi-escape-xs-perl, libzonmaster-perl, libmoosex-getopt-perl,
+ language-pack-en
 Description: Server perl libraries for Zonalizer Lim plugin
  Server perl libraries for Zonalizer Lim plugin.
 
