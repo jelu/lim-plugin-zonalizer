@@ -92,13 +92,12 @@ sub Init {
     $self->{db_driver}     = 'Memory';
     $self->{db_conf}       = {};
     $self->{lang}          = $ENV{LC_MESSAGES} || $ENV{LC_ALL} || $ENV{LANG} || $ENV{LANGUAGE} || 'en_US';
-    $self->{lang} =~ s/\..*$//o;
-    $self->{test_ipv4}   = 1;
-    $self->{test_ipv6}   = 1;
-    $self->{allow_ipv4}  = 1;
-    $self->{allow_ipv6}  = 1;
-    $self->{max_ongoing} = 5;
-    $self->{collector}   = {
+    $self->{test_ipv4}     = 1;
+    $self->{test_ipv6}     = 1;
+    $self->{allow_ipv4}    = 1;
+    $self->{allow_ipv6}    = 1;
+    $self->{max_ongoing}   = 5;
+    $self->{collector}     = {
         exec    => 'zonalizer-collector',
         threads => 5
     };
@@ -250,6 +249,8 @@ sub Init {
     #
     # Build translator
     #
+
+    $self->{lang} =~ s/\..*$//o;
 
     unless ( $self->{lang} =~ /^[a-z]{2}_[A-Z]{2}$/o ) {
         confess 'Invalid language set for translations';

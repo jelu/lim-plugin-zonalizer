@@ -25,7 +25,7 @@ create_timeout();
 
 my ( $o, $cv, %db, $r );
 
-Lim->Config->{zonalizer} = { collector => { exec => 't/collectors/do_nothing' } };
+Lim->Config->{zonalizer} = { lang => 'en_US', collector => { exec => 't/collectors/do_nothing' } };
 
 %db = ( Memory => {} );
 

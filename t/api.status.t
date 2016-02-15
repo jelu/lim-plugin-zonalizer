@@ -23,7 +23,7 @@ create_timeout();
 
 my ( $o, $cv );
 
-Lim->Config->{zonalizer} = { collector => { exec => 't/collectors/do_nothing' } };
+Lim->Config->{zonalizer} = { lang => 'en_US', collector => { exec => 't/collectors/do_nothing' } };
 
 isa_ok( $o = Lim::Plugin::Zonalizer::Server->new, 'Lim::Plugin::Zonalizer::Server' );
 
