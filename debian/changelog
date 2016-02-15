@@ -1,3 +1,9 @@
+liblim-plugin-zonalizer-perl (0.9901-3~unstable+1) unstable; urgency=low
+
+  * Fix dependency.
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Mon, 15 Feb 2016 13:22:27 +0100
+
 liblim-plugin-zonalizer-perl (0.9901-2~unstable+1) unstable; urgency=low
 
   * Fix dependency.

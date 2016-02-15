@@ -6,6 +6,7 @@ use Test::More;
 use File::Spec;
 use Log::Log4perl;
 use AnyEvent;
+use JSON;
 
 Log::Log4perl->init(
     \q(

@@ -46,9 +46,7 @@ my $JSON = JSON->new->utf8;
 my $db   = couchdb( $ARGV[0] );
 
 if ( $drop ) {
-    eval {
-        $db->drop->recv;
-    };
+    eval { $db->drop->recv; };
     if ( $@ and !$soft ) {
         die $@;
     }
@@ -60,9 +58,7 @@ if ( $drop ) {
     }
 }
 if ( $create ) {
-    eval {
-        $db->create->recv;
-    };
+    eval { $db->create->recv; };
     if ( $@ and !$soft ) {
         die $@;
     }

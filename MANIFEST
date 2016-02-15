@@ -33,7 +33,6 @@ t/api.policies.t
 t/api.policy.t
 t/api.status.t
 t/api.version.t
-t/boilerplate.t
 t/collectors/do_nothing
 t/critic.bin.t
 t/critic.t
