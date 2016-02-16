@@ -35,7 +35,7 @@ our %EXPORT_TAGS = (
 
 =head1 NAME
 
-Lim::Plugin::Zonalizer - Analyze your zones with ZoneMaster
+Lim::Plugin::Zonalizer - Analyze your zones with Zonemaster
 
 =head1 VERSION
 
@@ -199,7 +199,7 @@ Returns the plugin's description.
 =cut
 
 sub Description {
-    'Analyze your zones with ZoneMaster.';
+    'Analyze your zones with Zonemaster.';
 }
 
 =item $call_hash_ref = Lim::Plugin::Zonalizer->Calls
