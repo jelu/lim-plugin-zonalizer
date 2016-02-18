@@ -5,7 +5,7 @@
 Packages for Ubuntu can be installed from a PPA on LaunchPad.
 
 ```
-sudo add-apt-repository -y ppa:jelu/zonalizer
+sudo add-apt-repository ppa:jelu/zonalizer
 sudo apt-get update
 sudo apt-get install zonalizer-backend
 ```
