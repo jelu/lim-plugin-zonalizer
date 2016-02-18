@@ -27,7 +27,7 @@ WriteMakefile(
                 'Data::UUID'        => 0,
                 'Clone'             => 0,
                 'AnyEvent::CouchDB' => 1.31,
-                'AnyEvent::HTTP'    => 2.21,
+                'AnyEvent::HTTP'    => 2.13,
                 'JSON'              => 0,
                 'HTTP::Status'      => 0,
                 'JSON::XS'          => 0,

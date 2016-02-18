@@ -8,7 +8,6 @@ use Scalar::Util qw(weaken blessed);
 
 use Lim               ();
 use AnyEvent::CouchDB ();
-use AnyEvent::HTTP    ();
 use Lim::Plugin::Zonalizer qw(:err);
 use URI::Escape::XS qw(uri_escape);
 use JSON ();

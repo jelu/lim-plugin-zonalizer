@@ -1,2 +1,3 @@
 usr/share/perl5/Lim/Plugin/Zonalizer/DB/CouchDB.pm
 usr/share/man/man3/Lim::Plugin::Zonalizer::DB::CouchDB.3pm
+usr/bin/zonalizer-couchdb-database
