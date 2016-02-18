@@ -98,7 +98,7 @@ sub Init {
     $self->{allow_ipv6}    = 1;
     $self->{max_ongoing}   = 5;
     $self->{collector}     = {
-        exec    => 'zonalizer-collector',
+        exec    => '/usr/bin/zonalizer-collector',
         threads => 5
     };
     $self->{collector_policy}         = {};

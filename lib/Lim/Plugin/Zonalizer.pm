@@ -39,11 +39,11 @@ Lim::Plugin::Zonalizer - Analyze your zones with Zonemaster
 
 =head1 VERSION
 
-Version 0.99_01
+Version 1.00
 
 =cut
 
-our $VERSION = '0.99_01';
+our $VERSION = '1.00';
 
 =head1 SYNOPSIS
 

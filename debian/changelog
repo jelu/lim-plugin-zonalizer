@@ -1,3 +1,15 @@
+liblim-plugin-zonalizer-perl (1.00-2~unstable+1) unstable; urgency=low
+
+  * Add meta package. Changed collector->exec default configuration.
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Thu, 18 Feb 2016 13:43:49 +0100
+
+liblim-plugin-zonalizer-perl (1.00-1~unstable+1) unstable; urgency=low
+
+  * Release 1.00.
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Thu, 18 Feb 2016 12:03:40 +0100
+
 liblim-plugin-zonalizer-perl (0.9901-8~unstable+1) unstable; urgency=low
 
   * Fix dependency.

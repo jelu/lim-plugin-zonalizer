@@ -21,10 +21,10 @@ Description: Common perl libraries for Zonalizer Lim plugin
 Package: liblim-plugin-zonalizer-server-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
- liblim-plugin-zonalizer-common-perl (= 0.9901-1~unstable+1),
+ liblim-plugin-zonalizer-common-perl (>= 1.00),
  liblim-server-perl (>= 0.20), libanyevent-perl,
  libossp-uuid-perl | libdata-uuid-perl, libjson-perl, libjson-xs-perl,
- liburi-escape-xs-perl, libzonmaster-perl, libmoosex-getopt-perl,
+ liburi-escape-xs-perl, libzonemaster-perl, libmoosex-getopt-perl,
  language-pack-en
 Description: Server perl libraries for Zonalizer Lim plugin
  Server perl libraries for Zonalizer Lim plugin.
@@ -32,7 +32,7 @@ Description: Server perl libraries for Zonalizer Lim plugin
 Package: liblim-plugin-zonalizer-client-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
- liblim-plugin-zonalizer-common-perl (= 0.9901-1~unstable+1)
+ liblim-plugin-zonalizer-common-perl (>= 1.00)
 Description: Client perl libraries for Zonalizer Lim plugin
  Client perl libraries for communicating with the Zonalizer Lim plugin.
 
@@ -40,14 +40,24 @@ Package: liblim-plugin-zonalizer-cli-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
  liblim-cli-perl (>= 0.20),
- liblim-plugin-zonalizer-client-perl (= 0.9901-1~unstable+1)
+ liblim-plugin-zonalizer-client-perl (>= 1.00)
 Description: CLI perl libraries for Zonalizer Lim plugin
  CLI perl libraries for communicating with the Zonalizer Lim plugin.
 
 Package: liblim-plugin-zonalizer-db-couchdb-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
- liblim-plugin-zonalizer-server-perl (= 0.9901-1~unstable+1),
+ liblim-plugin-zonalizer-server-perl (>= 1.00),
  libanyevent-couchdb-perl, libanyevent-http-perl, liburi-escape-xs-perl
 Description: CouchDB support for Zonalizer Lim plugin
  CouchDB support for Zonalizer Lim plugin.
+
+Package: zonalizer-backend
+Architecture: all
+Depends: ${misc:Depends}, ${perl:Depends}, lim-agentd,
+ liblim-transport-http-perl, liblim-protocol-rest-perl,
+ liblim-plugin-zonalizer-server-perl
+Recommends: liblim-plugin-zonalizer-db-couchdb-perl, language-pack-sv,
+ language-pack-fr
+Description: Zonalizer backend meta package
+ Zonalizer backend meta package
