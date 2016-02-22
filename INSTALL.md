@@ -34,6 +34,8 @@ agent:
       plugin: Zonalizer
 ```
 
+Restart the Lim Agent Daemon to get the changes in effect.
+
 # Database setup
 
 If you installed without a database driver the `Memory` driver will be used and
