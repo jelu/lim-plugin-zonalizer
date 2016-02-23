@@ -1,3 +1,12 @@
+liblim-plugin-zonalizer-perl (1.01-1~unstable+1) unstable; urgency=low
+
+  * Release 1.01.
+
+    04febb7 Fix storing analysis when using space and sync space checks
+    f48fa06 Install doc update
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Tue, 23 Feb 2016 12:29:51 +0100
+
 liblim-plugin-zonalizer-perl (1.00-2~unstable+1) unstable; urgency=low
 
   * Add meta package. Changed collector->exec default configuration.
