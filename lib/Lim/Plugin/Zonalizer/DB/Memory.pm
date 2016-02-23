@@ -344,6 +344,16 @@ sub UpdateAnalyze {
         $self->{space}->{''}->{analyze_rfqdn} = {};
     }
 
+    if ( defined $args{space} and $args{space} ne $args{analyze}->{space} ) {
+        $@ = ERR_SPACE_MISSMATCH;
+        $args{cb}->();
+        return;
+    }
+    if ( !defined $args{space} and $args{analyze}->{space} ne '' ) {
+        $@ = ERR_SPACE_MISSMATCH;
+        $args{cb}->();
+        return;
+    }
     unless ( exists $self->{space}->{$space}->{analyze}->{ $args{analyze}->{id} } ) {
         $@ = ERR_ID_NOT_FOUND;
         $args{cb}->();

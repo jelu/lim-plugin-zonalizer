@@ -1979,6 +1979,7 @@ sub StoreAnalyze {
     $self->{logger}->debug( 'Storing ', $id );
 
     $self->{db}->UpdateAnalyze(
+        $TEST_SPACE{$id} ? ( space => $TEST_SPACE{$id} ) : (),
         analyze => {
             %{ $TEST_DB{$id} },
             %{ $TEST{$id} }
