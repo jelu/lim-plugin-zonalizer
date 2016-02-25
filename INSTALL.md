@@ -34,7 +34,12 @@ agent:
       plugin: Zonalizer
 ```
 
-Restart the Lim Agent Daemon to get the changes in effect.
+Restart the Lim Agent Daemon to get the changes in effect, following example is
+for Debian/Ubuntu.
+
+```
+sudo service lim-agentd restart
+```
 
 # Database setup
 
@@ -43,16 +48,24 @@ no setup is needed (but all results are lost on restart).
 
 ## CouchDB
 
-Initialize the CouchDB database, the URI to the database should be in the format
-of `http://localhost:5984/zonalizer` see CouchDB documentation for more
-information.
+Install CouchDB, following example is for Debian/Ubuntu. CouchDB does not have
+to be installed on the same server, you can also create multiple nodes and
+replication. See CouchDB documentation for more information.
+
+```
+sudo apt-get install couchdb
+```
+
+Initialize the CouchDB database, the `URI` to the database should be in the
+format of `http://localhost:5984/zonalizer` and must be the same used in the
+configuration below.
 
 ```
 zonalizer-couchdb-database --create URI
 ```
 
 Configure Zonalizer to use CouchDB, for example in
-`/etc/lim/agent.d/zonalizer.yaml`.
+`/etc/lim/agent.d/zonalizer.yaml` (create if not existing).
 
 ```
 ---
