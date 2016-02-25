@@ -1,3 +1,11 @@
+liblim-plugin-zonalizer-perl (1.02-1~unstable+1) unstable; urgency=low
+
+  * Release 1.02.
+
+    f2b53fd Fix IP resolving for undelegated NS
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Thu, 25 Feb 2016 14:56:14 +0100
+
 liblim-plugin-zonalizer-perl (1.01-1~unstable+1) unstable; urgency=low
 
   * Release 1.01.

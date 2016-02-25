@@ -1,5 +1,10 @@
 Revision history for Lim-Plugin-Zonalizer
 
+1.02    2016-02-25
+        Release 1.02
+
+        f2b53fd Fix IP resolving for undelegated NS
+
 1.01    2016-02-23
         Release 1.01
 
