@@ -284,9 +284,12 @@ sub process {
         my %ns;
         foreach ( @{ $in->{ns} } ) {
             my $idn = $self->to_idn( $_->{fqdn} );
-            my @ips = ( $_->{ip} );
+            my @ips;
 
-            unless ( scalar @ips ) {
+            if ( $_->{ip} ) {
+                push @ips, $_->{ip};
+            }
+            else {
                 push @ips, Net::LDNS->new->name2addr( $idn );
             }
 
