@@ -6,7 +6,7 @@ Build-Depends-Indep: libcommon-sense-perl (>= 3), perl,
  liblim-server-perl (>= 0.20), liblim-cli-perl (>= 0.20), libanyevent-perl,
  libossp-uuid-perl | libdata-uuid-perl, libjson-perl, libjson-xs-perl,
  liburi-escape-xs-perl, libzonemaster-perl, libanyevent-couchdb-perl,
- libanyevent-http-perl, libmoosex-getopt-perl, language-pack-en
+ libanyevent-http-perl, libmoosex-getopt-perl, language-pack-en | locales-all
 Maintainer: Jerry Lundström <lundstrom.jerry@gmail.com>
 Standards-Version: 3.9.1
 Homepage: http://your.homepage.com
@@ -25,7 +25,7 @@ Depends: ${misc:Depends}, ${perl:Depends},
  liblim-server-perl (>= 0.20), libanyevent-perl,
  libossp-uuid-perl | libdata-uuid-perl, libjson-perl, libjson-xs-perl,
  liburi-escape-xs-perl, libzonemaster-perl, libmoosex-getopt-perl,
- language-pack-en
+ language-pack-en | locales-all
 Description: Server perl libraries for Zonalizer Lim plugin
  Server perl libraries for Zonalizer Lim plugin.
 
@@ -57,7 +57,7 @@ Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends}, lim-agentd,
  liblim-transport-http-perl, liblim-protocol-rest-perl,
  liblim-plugin-zonalizer-server-perl
-Recommends: liblim-plugin-zonalizer-db-couchdb-perl, language-pack-sv,
- language-pack-fr
+Recommends: liblim-plugin-zonalizer-db-couchdb-perl,
+ language-pack-sv | locales-all, language-pack-fr | locales-all
 Description: Zonalizer backend meta package
  Zonalizer backend meta package

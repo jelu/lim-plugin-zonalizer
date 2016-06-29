@@ -1,3 +1,9 @@
+liblim-plugin-zonalizer-perl (1.02-3~unstable+1) unstable; urgency=low
+
+  * Package dependency fixes for Debian compatibility.
+
+ -- Jerry Lundström <lundstrom.jerry@gmail.com>  Wed, 29 Jun 2016 10:16:56 +0200
+
 liblim-plugin-zonalizer-perl (1.02-1~unstable+1) unstable; urgency=low
 
   * Release 1.02.
